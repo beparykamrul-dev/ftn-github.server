@@ -1,0 +1,26 @@
+version: 1
+
+services:
+  - id: control-plane
+    source: ftn-ser-ai
+    runtime: existing
+    desired_ref: main
+    health_path: /healthz
+    restart: existing
+
+  - id: dns
+    source: provider-example
+    runtime: existing
+    desired_ref: main
+    health_path: /
+    restart: existing
+
+  - id: monitoring
+    source: provider-example
+    runtime: existing
+    desired_ref: main
+    health_path: /
+    restart: existing
+
+# Runtime commands are intentionally not stored here yet.
+# Keep existing systemd/Docker/other runtime definitions on each node.
