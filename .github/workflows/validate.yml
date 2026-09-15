@@ -1,0 +1,25 @@
+name: FTN Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate YAML
+        run: |
+          python - <<'PY'
+          import pathlib
+          import yaml
+          for p in pathlib.Path('config').glob('*.yaml'):
+              with p.open() as f:
+                  yaml.safe_load(f)
+              print('OK', p)
+          PY
+      - name: Check deployment script
+        run: bash -n scripts/deploy.sh
