@@ -1,0 +1,30 @@
+version: 1
+nodes:
+  - id: core-01
+    type: vm
+    zone: bd-chittagong
+    services: [control-plane, core]
+    enabled: true
+  - id: dns-01
+    type: ct
+    zone: bd-chittagong
+    services: [dns]
+    enabled: true
+  - id: monitor-01
+    type: vm
+    zone: bd-chittagong
+    services: [monitoring]
+    enabled: true
+  - id: realtime-01
+    type: vm
+    zone: bd-chittagong
+    services: [realtime]
+    enabled: true
+  - id: edge-01
+    type: server
+    zone: global-edge
+    services: [frontend]
+    enabled: true
+
+# Real addresses, credentials and secrets stay outside Git.
+# Add actual nodes through the FTN Control Panel/deployment environment.
