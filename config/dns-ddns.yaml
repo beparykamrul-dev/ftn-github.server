@@ -1,0 +1,40 @@
+version: 1
+
+dns:
+  authoritative:
+    powerdns: true
+    cloudflare: true
+  recursive:
+    unbound: true
+    technitium: true
+    coredns: true
+  resolver_router: dnsdist
+  dnssec: true
+  anycast_ready: true
+  geo_routing: true
+  latency_routing: true
+  health_routing: true
+
+ddns:
+  enabled: true
+  records:
+    ipv4: A
+    ipv6: AAAA
+  update_sources:
+    - node-public-ip
+    - provider-health
+  providers:
+    - cloudflare
+  safeguards:
+    allowlist: true
+    audit_log: true
+    dry_run: true
+    secrets_outside_git: true
+
+# A node publishes only sanitized state/metrics to the central Git registry.
+# Raw DNS queries, packets, payloads, credentials and private runtime data never enter GitHub.
+telemetry:
+  ram_buffer: true
+  batch: true
+  sanitized: true
+  github_sink: metrics-and-state
