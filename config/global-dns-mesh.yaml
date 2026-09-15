@@ -1,0 +1,143 @@
+version: 1
+platform: FTN
+name: global-dns-mesh
+
+# Global DNS/Portal registry. Git stores topology and policy only.
+# Secrets, live packets, query payloads and private runtime data stay on nodes.
+
+portal_dns:
+  enabled: true
+  control_plane: aspnet-core
+  backend: go
+  database: postgresql
+  pooler: pgbouncer
+  api: internal
+  audit: true
+  health: true
+
+authoritative:
+  powerdns_enterprise:
+    enabled: true
+    role: authoritative
+  technitium_dns_enterprise:
+    enabled: true
+    role: authoritative
+  coredns:
+    enabled: true
+    role: authoritative-and-service-discovery
+  cloudflare_dns:
+    enabled: true
+    role: authoritative-provider
+  akamai_dns:
+    enabled: true
+    role: authoritative-provider
+  dnspod_tencent:
+    enabled: true
+    role: authoritative-provider
+
+recursive:
+  unbound: true
+  hickory_dns: true
+  technitium: true
+  coredns: true
+
+routing:
+  dnsdist: true
+  godns: true
+  anycast_dns: true
+  global_dns_mesh: true
+  smart_dns: true
+  latency_routing: true
+  geo_routing: true
+  health_routing: true
+  failover: true
+
+providers:
+  cloudflare: true
+  dnspod_tencent_cloud: true
+  akamai: true
+  duckdns: true
+  porkbun: true
+
+edge_and_delivery:
+  cloudflare: true
+  netflix: true
+  fastly: true
+  netflix_proxy: true
+  caddy_dns: true
+
+certificates:
+  lets_encrypt: true
+  dns01: true
+  dns_providers:
+    - dnspod
+    - cloudflare
+  automatic_renewal: true
+
+smart_shield:
+  enabled: true
+  smart_dns: true
+  ad_blocking: true
+  ai_traffic_management: true
+  shielding: true
+  abuse_detection: true
+  rate_control: true
+  anomaly_detection: true
+  policy_engine: control-plane
+  raw_payload_export: false
+
+numa_dns:
+  enabled: true
+  mode: policy-module
+  cpu_locality_aware: true
+  cache_locality_aware: true
+
+anycast:
+  enabled: true
+  protocol: bgp
+  health_gated: true
+  route_withdraw_on_failure: true
+  ipv4: true
+  ipv6: true
+  rpkiroute_validation: true
+  note: "Advertise only prefixes actually authorized by FTN and its upstreams."
+
+mesh:
+  topology: global-multi-provider
+  nodes: global-zones
+  state_sync: control-plane
+  dns_state: postgresql
+  cache_state: local
+  provider_failover: automatic
+  split_horizon: supported
+  dnssec: true
+
+control_plane:
+  aspnet_core: true
+  go_backend: true
+  postgresql: true
+  pgbouncer: true
+  responsibilities:
+    - dns-zone-management
+    - provider-routing-policy
+    - anycast-state
+    - ddns-policy
+    - health-state
+    - geo-flow-policy
+    - certificate-state
+    - audit
+
+telemetry:
+  ram_buffer: true
+  github_snapshot: true
+  sanitized_metrics_only: true
+  raw_packets: false
+  raw_dns_payloads: false
+  credentials: false
+  secrets: false
+  private_ips: false
+
+security:
+  secrets_in_git: false
+  provider_tokens_in_git: false
+  destructive_migration: false
