@@ -1,0 +1,36 @@
+version: 1
+
+nodes:
+  - id: core-01
+    zone: bd-chittagong
+    type: vm
+    host: example.internal
+    enabled: true
+    labels:
+      - core
+      - production
+    services:
+      - control-plane
+
+  - id: dns-01
+    zone: bd-chittagong
+    type: ct
+    host: example.internal
+    enabled: true
+    labels:
+      - dns
+      - production
+    services:
+      - dns
+
+  - id: monitor-01
+    zone: eu
+    type: vm
+    host: example.internal
+    enabled: true
+    labels:
+      - monitoring
+    services:
+      - monitoring
+
+# Never put real passwords, private keys, API tokens, or other secrets here.
