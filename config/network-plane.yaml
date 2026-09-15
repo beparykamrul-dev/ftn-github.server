@@ -1,0 +1,123 @@
+version: 1
+
+# FTN Network Plane registry.
+# GitHub stores configuration/source references only; live packets and secrets stay on nodes.
+
+traffic:
+  mode: metrics-only
+  ram_buffer:
+    enabled: true
+    max_events: 10000
+    flush_interval_seconds: 30
+  github:
+    enabled: true
+    payload: sanitized-metrics-and-events
+    include_packets: false
+    include_payloads: false
+    include_secrets: false
+    include_credentials: false
+    include_private_ips: false
+
+  # Runtime telemetry should be aggregated before any GitHub publication.
+  metrics:
+    - bytes_in
+    - bytes_out
+    - packets_in
+    - packets_out
+    - connections
+    - latency_ms
+    - errors
+    - dns_queries
+    - tunnel_health
+    - proxy_health
+
+dns:
+  authoritative:
+    - powerdns
+    - cloudflare
+  recursive:
+    - unbound
+    - technitium
+    - coredns
+  traffic_router:
+    - dnsdist
+  features:
+    dnssec: true
+    anycast_ready: true
+    health_checks: true
+    latency_routing: true
+    geo_routing: true
+
+ddns:
+  enabled: true
+  providers:
+    - cloudflare
+  record_types: [A, AAAA]
+  ipv4: true
+  ipv6: true
+  dual_stack: true
+  update_policy: allowlist-and-health
+  audit: true
+  dry_run_supported: true
+
+geo_flow:
+  enabled: true
+  dimensions:
+    - country
+    - region
+    - city
+    - latitude
+    - longitude
+    - timezone
+    - colo
+    - asn
+    - provider
+    - zone
+    - node
+    - service
+  routing:
+    geo: true
+    latency: true
+    health: true
+    failover: true
+
+# Multiple independent tunnels can coexist per node/zone.
+tunnels:
+  strategy: multi-tunnel
+  health_check_interval_seconds: 15
+  failover: automatic
+  examples:
+    - id: tunnel-primary
+      provider: cloudflare
+      enabled: true
+    - id: tunnel-secondary
+      provider: cloudflare
+      enabled: true
+    - id: tunnel-provider
+      provider: external
+      enabled: false
+
+# Multiple reverse/forward proxy layers are supported without forcing one proxy implementation.
+proxies:
+  strategy: multi-proxy
+  health_check_interval_seconds: 15
+  failover: automatic
+  supported:
+    - caddy
+    - nginx
+    - haproxy
+    - envoy
+    - cloudflare
+  routing:
+    service: true
+    hostname: true
+    geo: true
+    latency: true
+    health: true
+
+security:
+  secrets_in_git: false
+  raw_traffic_in_git: false
+  packet_capture_in_git: false
+  credentials_in_telemetry: false
+  destructive_migration: false
