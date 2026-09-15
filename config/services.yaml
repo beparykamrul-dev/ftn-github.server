@@ -1,0 +1,26 @@
+version: 1
+services:
+  control-plane:
+    runtime: existing
+    deploy: pull-and-restart
+    nodes: [core-01]
+  frontend:
+    runtime: existing
+    deploy: pull-build-and-reload
+    nodes: [edge-01]
+  dns:
+    runtime: existing
+    deploy: pull-and-restart
+    nodes: [dns-01]
+  monitoring:
+    runtime: existing
+    deploy: pull-and-restart
+    nodes: [monitor-01]
+  realtime:
+    runtime: existing
+    deploy: pull-and-restart
+    nodes: [realtime-01]
+  core:
+    runtime: existing
+    deploy: pull-and-restart
+    nodes: [core-01]
