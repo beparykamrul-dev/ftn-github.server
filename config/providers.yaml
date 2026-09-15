@@ -1,0 +1,19 @@
+version: 1
+providers:
+  # Keep provider source references here. Do not copy proprietary code.
+  # Public/open-source repositories may be referenced by URL.
+  - id: cloudflare
+    source: official
+    enabled: true
+  - id: eulerstream
+    source: official
+    enabled: true
+  - id: grafana
+    source: official
+    enabled: true
+  - id: docker
+    source: official
+    enabled: true
+  - id: github
+    source: official
+    enabled: true
