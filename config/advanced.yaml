@@ -1,0 +1,118 @@
+version: 1
+platform: FTN
+
+modules:
+  cloudflare:
+    enabled: true
+    source_repo: https://github.com/beparykamrul-dev/cloudflare-docs.git
+    branch: production
+    capabilities:
+      - dns_records
+      - dns_batch
+      - dnssec
+      - zones
+      - api_tokens
+      - workers
+      - workers_ai
+      - kv
+      - d1
+      - r2
+      - pages
+      - tunnels
+      - load_balancing
+      - health_checks
+      - rules
+      - cache
+      - ip_geolocation
+      - colo_routing
+
+  ddns:
+    enabled: true
+    providers:
+      - cloudflare
+      - custom_dns
+    record_types: [A, AAAA]
+    modes:
+      - ipv4
+      - ipv6
+      - dual_stack
+    safety:
+      dry_run: true
+      allowlist_only: true
+      preserve_ttl: true
+      audit_log: true
+    credentials: external_only
+
+  geoflow:
+    enabled: true
+    input:
+      - cloudflare_request_cf
+      - cf_ipcountry
+      - client_ip
+      - dns_location
+      - node_location
+    fields:
+      - country
+      - continent
+      - region
+      - city
+      - latitude
+      - longitude
+      - timezone
+      - colo
+      - client_tcp_rtt
+      - client_quic_rtt
+    outputs:
+      - geo_map
+      - latency_map
+      - service_route
+      - edge_selection
+      - node_health
+      - traffic_summary
+    policy:
+      data_minimization: true
+      no_secret_export: true
+      no_raw_credentials: true
+
+  dns_mesh:
+    enabled: true
+    components:
+      - powerdns
+      - unbound
+      - technitium
+      - coredns
+      - dnsdist
+      - cloudflare_dns
+    functions:
+      - authoritative
+      - recursive
+      - cache
+      - health_check
+      - latency_probe
+      - failover
+      - anycast_ready
+
+  global_flow:
+    enabled: true
+    dimensions:
+      - provider
+      - region
+      - zone
+      - node
+      - service
+      - protocol
+      - ipv4
+      - ipv6
+      - latency
+      - health
+    providers:
+      - cloudflare
+      - github
+      - global_edge
+      - custom_ftn
+
+security:
+  secrets_in_git: false
+  provider_tokens_in_git: false
+  runtime_credentials: external_only
+  destructive_migration: false
