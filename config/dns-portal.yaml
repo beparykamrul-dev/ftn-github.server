@@ -1,0 +1,94 @@
+version: 1
+platform: FTN
+name: dns-portal
+
+portal:
+  hostname: portal-dns
+  mode: control-and-observe
+  auth: external
+  audit: true
+  no_secret_display: true
+
+engines:
+  authoritative:
+    - powerdns-enterprise
+    - technitium-dns-enterprise
+    - coredns
+    - cloudflare-dns
+    - akamai-dns
+    - dnspod
+  recursive:
+    - unbound
+    - hickory-dns
+    - technitium
+    - coredns
+  routing:
+    - dnsdist
+    - godns
+    - anycast
+    - global-dns-mesh
+
+provider_integrations:
+  cloudflare:
+    dns: true
+    ddns: true
+    dnssec: true
+    health: true
+  dnspod:
+    dns: true
+    ddns: true
+    dns01: true
+  akamai:
+    dns: true
+  duckdns:
+    ddns: true
+  porkbun:
+    dns: true
+
+edge:
+  cloudflare: true
+  fastly: true
+  netflix: true
+  netflix-proxy: true
+  caddy-dns: true
+
+certificates:
+  lets-encrypt: true
+  challenge: dns-01
+  provider_fallback:
+    - dnspod
+    - cloudflare
+
+traffic:
+  smart-dns: true
+  ai-driven-management: true
+  shielding: true
+  ad-blocking: true
+  geo-flow: true
+  latency-flow: true
+  health-flow: true
+  failover: true
+
+storage:
+  postgresql: true
+  pgbouncer: true
+  local-cache: true
+
+backends:
+  aspnet-core-control-plane: true
+  go-backend: true
+
+# NUMA-aware DNS is represented as a policy/capability; exact implementation
+# remains runtime-specific and must be validated on each target node.
+numa-dns:
+  enabled: true
+  policy: locality-aware
+
+observability:
+  ram_buffer: true
+  github_snapshot: true
+  sanitized_only: true
+  raw_packets: false
+  raw_payloads: false
+  credentials: false
+  secrets: false
