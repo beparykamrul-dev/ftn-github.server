@@ -1,0 +1,18 @@
+version: 1
+
+sources:
+  - id: ftn-ser-ai
+    kind: git
+    repository: https://github.com/beparykamrul-dev/FTN_ser_AI.git
+    ref: main
+    enabled: true
+    trust: owned
+
+  # Provider sources should point to their official repositories.
+  # Do not copy proprietary source code into this repository.
+  - id: provider-example
+    kind: git
+    repository: https://github.com/example/provider.git
+    ref: main
+    enabled: false
+    trust: external
