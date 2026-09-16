@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic FTN GitHub repository sync
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Persistent=true
+Unit=ftn-git-sync.service
+
+[Install]
+WantedBy=timers.target
