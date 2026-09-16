@@ -1,0 +1,198 @@
+version: 1
+platform: FTN
+name: security-observability
+
+# Defensive monitoring/inventory plane. No exploit execution, credential capture,
+# persistence, or unauthorized surveillance is enabled by this registry.
+
+kismet:
+  enabled: true
+  mode: passive-asset-observation
+  scope: authorized-sensors-only
+  collect:
+    - wireless-device-metadata
+    - channel-observations
+    - signal-quality
+    - sensor-health
+  raw_content_capture: false
+  credential_capture: false
+
+kopia:
+  enabled: true
+  role: backup-and-recovery
+  protect:
+    - central-database
+    - configuration
+    - audit-data
+    - monitoring-state
+  encryption: required
+  immutable_snapshots: true
+  restore_testing: true
+
+opensearch:
+  enabled: true
+  role: security-search-and-analytics
+  indexes:
+    - network-assets
+    - dns-events
+    - route-events
+    - health-events
+    - security-events
+    - osint-observations
+    - censorship-observations
+    - audit-events
+  retention: policy-driven
+  encryption_in_transit: true
+  access_control: rbac
+
+hardware_baseband:
+  mode: defensive-vulnerability-intelligence
+  inventory:
+    - vendor
+    - model
+    - firmware
+    - hardware-revision
+    - chipset
+    - baseband-family
+    - cpe
+    - cve
+    - advisory
+  exploit_execution: false
+  exploit_payload_storage: false
+  authorized_lab_only: true
+  remediation_tracking: true
+
+security_tooling:
+  impacket:
+    enabled: true
+    mode: authorized-assessment-only
+    credential_dumping: false
+    lateral_movement: false
+    relay_attacks: false
+  metasploit:
+    enabled: true
+    mode: authorized-lab-validation-only
+    exploit_execution_in_production: false
+    payload_generation_for_production: false
+    remediation_validation: true
+
+osint:
+  enabled: true
+  sources:
+    - dns
+    - ip
+    - asn
+    - whois
+    - rdap
+    - route
+    - bgp
+    - certificate-transparency
+    - public-advisories
+  enrichment:
+    - organization
+    - provider
+    - prefix
+    - domain
+    - nameserver
+    - certificate
+    - routing-state
+  private_data_collection: false
+  credential_collection: false
+
+surveillance_censorship_monitoring:
+  enabled: true
+  purpose: network-availability-and-censorship-measurement
+  observations:
+    - dns-resolution
+    - tcp-connectivity
+    - tls-handshake
+    - http-status
+    - route-path
+    - latency
+    - reachability
+    - resolver-differences
+  content_interception: false
+  credential_capture: false
+  user_tracking: false
+  measurement_scope: authorized-and-public-targets
+
+unified_deep_monitoring:
+  enabled: true
+  entity_key: normalized-observation-id
+  dimensions:
+    ip: true
+    ipv6: true
+    asn: true
+    prefix: true
+    domain: true
+    dns: true
+    whois: true
+    rdap: true
+    route: true
+    bgp: true
+    provider: true
+    certificate: true
+    node: true
+    service: true
+    geo: true
+    latency: true
+    health: true
+  correlation:
+    ip_to_asn: true
+    ip_to_dns: true
+    dns_to_ip: true
+    domain_to_whois: true
+    domain_to_rdap: true
+    asn_to_prefix: true
+    prefix_to_route: true
+    route_to_provider: true
+    certificate_to_domain: true
+    node_to_service: true
+  storage:
+    hot: opensearch
+    durable: postgresql
+    backup: kopia
+    ram_buffer: true
+
+pipeline:
+  source: local-sensors-and-authorized-apis
+  flow:
+    - collect
+    - normalize
+    - validate
+    - classify
+    - correlate
+    - store
+    - alert
+    - snapshot
+  github_export: sanitized-metadata-only
+  raw_packets: false
+  raw_payloads: false
+  credentials: false
+  secrets: false
+
+query:
+  unified_search: true
+  examples:
+    - ip
+    - asn
+    - domain
+    - dns-record
+    - nameserver
+    - whois-rdap
+    - route
+    - bgp-session
+    - certificate
+    - cve
+    - firmware
+    - provider
+    - node
+  audit_queries: true
+
+safety:
+  authorized_targets_only: true
+  destructive_actions: false
+  exploit_execution_in_production: false
+  credential_collection: false
+  persistence: false
+  raw_user_content_export: false
