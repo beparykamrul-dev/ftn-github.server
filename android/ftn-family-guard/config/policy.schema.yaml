@@ -1,0 +1,67 @@
+version: 1
+name: ftn-family-guard-policy
+
+policy:
+  id: runtime
+  version: runtime
+  profile: family|child|teen|custom
+  enabled: true
+
+  dns:
+    resolver_mode: runtime
+    encrypted_dns: runtime
+    dnssec_required: runtime
+    fail_closed: false
+
+  domain_rules:
+    allow: []
+    block: []
+    wildcard: []
+    categories: []
+
+  ip_rules:
+    allow: []
+    block: []
+    cidr: []
+
+  protection:
+    malware: true
+    phishing: true
+    safe_search: true
+
+  schedule:
+    enabled: false
+    timezone: runtime
+    windows: []
+
+  privacy:
+    raw_dns_logging: false
+    raw_payload_capture: false
+    content_inspection: false
+    usage_upload: aggregate-only
+
+  enforcement:
+    precedence:
+      - emergency_block
+      - explicit_allow
+      - explicit_block
+      - profile
+      - category
+      - reputation
+      - default
+    local_cache: true
+    rollback: true
+    expiry: runtime
+
+  sync:
+    pull: true
+    push: true
+    websocket: true
+    heartbeat_seconds: 30
+    reconnect: true
+
+  audit:
+    policy_change: true
+    rule_change: true
+    enrollment: true
+    revocation: true
