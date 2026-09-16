@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.familytimenet.familyguard.core.model.FamilyPolicy
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 
 private val Context.policyDataStore by preferencesDataStore(name = "ftn_family_guard_policy")
@@ -29,7 +30,7 @@ class PolicyRepository(private val context: Context) {
     }
 
     suspend fun loadPersisted(): FamilyPolicy? {
-        val json = context.policyDataStore.data.map { it[jsonKey] }.let { flow -> flow.firstOrNull() }
+        val json = context.policyDataStore.data.map { it[jsonKey] }.firstOrNull()
         return json?.let { runCatching { PolicyJsonParser.parse(it) }.getOrNull() }
     }
 
@@ -44,6 +45,3 @@ class PolicyRepository(private val context: Context) {
 
     fun defaultPolicy(): FamilyPolicy = FamilyPolicy.default()
 }
-
-private suspend fun <T> kotlinx.coroutines.flow.Flow<T>.firstOrNull(): T? =
-    runCatching { kotlinx.coroutines.flow.first(this) }.getOrNull()
