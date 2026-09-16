@@ -11,14 +11,7 @@ import com.familytimenet.familyguard.core.filter.FamilyGuardFilter
 import com.familytimenet.familyguard.core.model.FamilyPolicy
 import com.familytimenet.familyguard.core.usage.UsageAggregator
 
-/**
- * User-visible VPN shell for Family Guard.
- *
- * The service owns the local TUN interface and policy decision layer. It does not
- * inspect application payloads or message contents. Direct traffic to public
- * Cloudflare Family DNS endpoints is routed into the local TUN so the transport
- * layer can reject it instead of using it as an upstream resolver.
- */
+/** User-visible VPN shell for policy-controlled Family Guard DNS filtering. */
 class FtnDnsVpnService : VpnService() {
     private var tunnel: android.os.ParcelFileDescriptor? = null
     private var activePolicy: FamilyPolicy = FamilyPolicy.default()
@@ -37,7 +30,7 @@ class FtnDnsVpnService : VpnService() {
                 .setSession("FTN Family Guard")
                 .addAddress("10.245.0.2", 32)
                 .addRoute("10.245.0.0", 24)
-                // Cloudflare Family DNS: do not use as an upstream resolver.
+                // Resolver destinations are policy-controlled. These are not hard-block rules.
                 .addRoute("1.1.1.1", 32)
                 .addRoute("1.0.0.1", 32)
                 .addRoute("2606:4700:4700::1111", 128)
@@ -51,56 +44,29 @@ class FtnDnsVpnService : VpnService() {
         require(policy.version > 0)
         require(!policy.privacy.rawDnsLogging)
         require(!policy.privacy.payloadInspection)
+        require(policy.dns.dnssec)
         activePolicy = policy
     }
 
     fun evaluateDomain(domain: String) = filter.evaluateDomain(domain).also {
-        if (it.action == com.familytimenet.familyguard.core.filter.FilterDecision.Action.ALLOW) {
-            usage.recordAllowed()
-        } else {
-            usage.recordBlocked()
-        }
+        if (it.action == com.familytimenet.familyguard.core.filter.FilterDecision.Action.ALLOW) usage.recordAllowed()
+        else usage.recordBlocked()
     }
 
     fun evaluateIpv4(address: String) = filter.evaluateIpv4(address).also {
-        if (it.action == com.familytimenet.familyguard.core.filter.FilterDecision.Action.ALLOW) {
-            usage.recordAllowed()
-        } else {
-            usage.recordBlocked()
-        }
+        if (it.action == com.familytimenet.familyguard.core.filter.FilterDecision.Action.ALLOW) usage.recordAllowed()
+        else usage.recordBlocked()
     }
 
-    fun usageSnapshot(deviceId: String, windowStart: Long, windowEnd: Long) =
-        usage.snapshot(deviceId, windowStart, windowEnd)
+    fun usageSnapshot(deviceId: String, windowStart: Long, windowEnd: Long) = usage.snapshot(deviceId, windowStart, windowEnd)
 
-    override fun onDestroy() {
-        tunnel?.close()
-        tunnel = null
-        usage.reset()
-        super.onDestroy()
-    }
-
+    override fun onDestroy() { tunnel?.close(); tunnel=null; usage.reset(); super.onDestroy() }
     override fun onBind(intent: Intent): IBinder? = super.onBind(intent)
 
-    private fun notification(): android.app.Notification =
-        NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("FTN Family Guard")
-            .setContentText("DNS protection is active")
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
-            .setOngoing(true)
-            .build()
+    private fun notification(): android.app.Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        .setContentTitle("FTN Family Guard").setContentText("DNS protection is active")
+        .setSmallIcon(android.R.drawable.stat_sys_warning).setOngoing(true).build()
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "FTN Family Guard", NotificationManager.IMPORTANCE_LOW)
-            )
-        }
-    }
-
-    companion object {
-        private const val CHANNEL_ID = "ftn-family-guard"
-        private const val NOTIFICATION_ID = 4102
-    }
+    private fun createNotificationChannel() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel(CHANNEL_ID,"FTN Family Guard",NotificationManager.IMPORTANCE_LOW)) }
+    companion object { private const val CHANNEL_ID="ftn-family-guard"; private const val NOTIFICATION_ID=4102 }
 }
