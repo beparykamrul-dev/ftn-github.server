@@ -24,18 +24,20 @@ class PolicyClient(private val baseUrl: String) {
             connection.setRequestProperty("Authorization", "Bearer $sessionReference")
 
             val status = connection.responseCode
-            val policy = if (status in 200..299) {
-                connection.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
-                    PolicyJsonParser.parse(reader.readText())
-                }
-            } else null
-            PolicyEnvelope(status, policy)
+            if (status !in 200..299) return PolicyEnvelope(status, null, null)
+
+            val rawJson = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            PolicyEnvelope(status, PolicyJsonParser.parse(rawJson), rawJson)
         } finally {
             connection.disconnect()
         }
     }
 
-    data class PolicyEnvelope(val status: Int, val policy: com.familytimenet.familyguard.core.model.FamilyPolicy?)
+    data class PolicyEnvelope(
+        val status: Int,
+        val policy: com.familytimenet.familyguard.core.model.FamilyPolicy?,
+        val rawJson: String?
+    )
 
     private fun encodePath(value: String): String =
         java.net.URLEncoder.encode(value, Charsets.UTF_8.name()).replace("+", "%20")
