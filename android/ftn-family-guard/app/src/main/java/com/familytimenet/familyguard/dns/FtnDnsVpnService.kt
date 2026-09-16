@@ -15,8 +15,9 @@ import com.familytimenet.familyguard.core.usage.UsageAggregator
  * User-visible VPN shell for Family Guard.
  *
  * The service owns the local TUN interface and policy decision layer. It does not
- * inspect application payloads or message contents. Full DNS packet forwarding is
- * intentionally kept separate until a tested transport implementation is available.
+ * inspect application payloads or message contents. Direct traffic to public
+ * Cloudflare Family DNS endpoints is routed into the local TUN so the transport
+ * layer can reject it instead of using it as an upstream resolver.
  */
 class FtnDnsVpnService : VpnService() {
     private var tunnel: android.os.ParcelFileDescriptor? = null
@@ -36,6 +37,11 @@ class FtnDnsVpnService : VpnService() {
                 .setSession("FTN Family Guard")
                 .addAddress("10.245.0.2", 32)
                 .addRoute("10.245.0.0", 24)
+                // Cloudflare Family DNS: do not use as an upstream resolver.
+                .addRoute("1.1.1.1", 32)
+                .addRoute("1.0.0.1", 32)
+                .addRoute("2606:4700:4700::1111", 128)
+                .addRoute("2606:4700:4700::1001", 128)
                 .establish()
         }
         return START_STICKY
