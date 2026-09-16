@@ -1,0 +1,139 @@
+version: 1
+platform: FTN
+name: dns-usage-map
+
+# DNS usage and dependency map. Identity is pseudonymous where possible.
+# Raw DNS queries, browsing payloads, credentials and private telemetry stay local.
+
+map:
+  dimensions:
+    - client_group
+    - device_id
+    - node
+    - resolver
+    - authoritative_provider
+    - domain
+    - ip
+    - service
+    - route
+    - asn
+    - geo
+  relations:
+    client_to_dns: true
+    dns_to_domain: true
+    domain_to_ip: true
+    domain_to_service: true
+    service_to_provider: true
+    ip_to_asn: true
+    ip_to_route: true
+    route_to_provider: true
+
+usage_metrics:
+  interval_seconds: 15
+  metrics:
+    - query_count
+    - allowed_count
+    - blocked_count
+    - cache_hit_ratio
+    - response_latency_ms
+    - servfail_rate
+    - nxdomain_rate
+    - timeout_rate
+    - upstream_latency_ms
+    - dnssec_state
+    - transport
+    - qps
+  transports: [udp, tcp, dot, doh, doq]
+
+activities:
+  classify:
+    - web
+    - app
+    - mail
+    - api
+    - cdn
+    - update
+    - telemetry
+    - dns
+    - other
+  evidence:
+    - dns_record
+    - service_registry
+    - ip_asn
+    - route
+    - tls_metadata
+    - provider_health
+  raw_payloads: false
+
+filtering:
+  ip:
+    ipv4: true
+    ipv6: true
+    cidr: true
+    allowlist: true
+    blocklist: true
+    temporary_rules: true
+    expiry_required_for_temporary: true
+    audit: true
+  domain:
+    exact: true
+    subdomain: true
+    wildcard: true
+    categories: true
+    custom_rules: true
+    allowlist_override: true
+    safe_search: true
+    malware_phishing_protection: true
+  enforcement:
+    dns_policy: true
+    resolver_policy: true
+    firewall_correlation: true
+    route_correlation: true
+    health_gate: true
+
+family_guard:
+  enabled: true
+  profiles:
+    - child
+    - teen
+    - family
+    - custom
+  controls:
+    category_policy: true
+    custom_allowlist: true
+    custom_blocklist: true
+    safe_search: true
+    malicious_domain_protection: true
+    schedule: true
+    bedtime_policy: true
+    device_groups: true
+    per_profile_dns: true
+  privacy:
+    raw_browsing_history: false
+    raw_dns_export: false
+    payload_collection: false
+    detailed_stats: aggregated
+  administration:
+    parent_or_account_admin: true
+    policy_audit: true
+    emergency_disable: true
+
+observability:
+  dashboard: true
+  websocket: true
+  map_view: true
+  live_status: true
+  control_plane: true
+  postgresql: true
+  opensearch: true
+  ram_buffer: true
+  github_snapshot: sanitized-state-only
+
+security:
+  read_only_monitoring_default: true
+  mutations_require_policy: true
+  secrets_in_git: false
+  credentials_in_git: false
+  raw_dns_queries_in_git: false
+  raw_packets_in_git: false
+  unauthorized_surveillance: false
