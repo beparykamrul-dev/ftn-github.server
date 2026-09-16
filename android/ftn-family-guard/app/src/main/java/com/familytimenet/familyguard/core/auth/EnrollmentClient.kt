@@ -1,6 +1,7 @@
 package com.familytimenet.familyguard.core.auth
 
 import android.content.Context
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URI
 import java.util.UUID
@@ -11,6 +12,7 @@ class EnrollmentClient(context: Context, private val baseUrl: String) {
 
     data class EnrollmentResult(
         val deviceId: String,
+        /** Server-issued opaque session reference; never the enrollment token. */
         val enrollmentId: String,
         val status: Int
     )
@@ -36,11 +38,19 @@ class EnrollmentClient(context: Context, private val baseUrl: String) {
             """.trimIndent()
             connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
 
-            EnrollmentResult(
-                deviceId = identity.deviceId,
-                enrollmentId = UUID.randomUUID().toString(),
-                status = connection.responseCode
-            )
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val responseText = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) {
+                throw IllegalStateException("Family Guard enrollment failed: HTTP $status")
+            }
+            val response = runCatching { JSONObject(responseText) }.getOrElse {
+                throw IllegalStateException("Family Guard returned invalid enrollment response")
+            }
+            val deviceId = response.optString("device_id").ifBlank { identity.deviceId }
+            val session = response.optString("session").trim()
+            require(session.isNotBlank()) { "Family Guard did not return a session reference" }
+            EnrollmentResult(deviceId = deviceId, enrollmentId = session, status = status)
         } finally {
             connection.disconnect()
         }
