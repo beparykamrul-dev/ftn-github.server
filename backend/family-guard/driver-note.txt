@@ -1,0 +1,1 @@
+The next source update wires github.com/jackc/pgx/v5/stdlib into SQLStore. Runtime dependencies must be resolved by Go modules during build.
