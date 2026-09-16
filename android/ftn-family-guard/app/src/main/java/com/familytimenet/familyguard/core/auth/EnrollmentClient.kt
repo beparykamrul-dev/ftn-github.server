@@ -5,10 +5,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.util.UUID
 
-/**
- * Minimal enrollment transport. The enrollment token is supplied by the user/control
- * plane and is never hard-coded or committed to the repository.
- */
+/** Enrollment transport. Tokens are supplied at runtime and never committed to the repository. */
 class EnrollmentClient(context: Context, private val baseUrl: String) {
     private val identity = DeviceIdentity(context.applicationContext)
 
@@ -20,7 +17,11 @@ class EnrollmentClient(context: Context, private val baseUrl: String) {
 
     fun enroll(enrollmentToken: String): EnrollmentResult {
         require(enrollmentToken.isNotBlank()) { "Enrollment token is required" }
-        val endpoint = URI.create(baseUrl.trimEnd('/') + "/api/v1/family/android/enroll")
+        val base = URI.create(baseUrl)
+        require(base.scheme.equals("https", ignoreCase = true)) {
+            "FTN Control Plane must use HTTPS"
+        }
+        val endpoint = URI.create(base.toString().trimEnd('/') + "/api/v1/family/android/enroll")
         val connection = endpoint.toURL().openConnection() as HttpURLConnection
         return try {
             connection.requestMethod = "POST"
