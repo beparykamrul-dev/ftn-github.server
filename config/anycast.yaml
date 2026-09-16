@@ -1,0 +1,47 @@
+version: 1
+platform: FTN
+name: anycast-control
+
+# Anycast is a routing capability. Real prefixes, ASNs, BGP credentials and
+# router sessions remain outside Git and are supplied by the runtime.
+
+anycast:
+  enabled: true
+  address_families: [ipv4, ipv6]
+  routing_protocol: bgp
+  health_gated: true
+  automatic_withdraw: true
+  graceful_recovery: true
+  rpki_validation: true
+  max_prefix_policy: true
+
+route_policy:
+  selection_order:
+    - health
+    - latency
+    - geo
+    - provider_policy
+  failover:
+    enabled: true
+    hold_down_seconds: 30
+    require_healthy_origin: true
+
+sites:
+  mode: multi-region
+  nodes_from: config/nodes.yaml
+  prefixes_from_runtime: true
+  no_placeholder_prefixes: true
+
+health:
+  dns: true
+  tcp: true
+  http: true
+  resolver: true
+  control_plane: true
+  withdraw_on_failure: true
+
+security:
+  bgp_auth_external: true
+  secrets_in_git: false
+  private_keys_in_git: false
+  unauthorized_prefix_advertisement: false
