@@ -1,6 +1,7 @@
 package main
 
 import (
+    "context"
     "crypto/rand"
     "encoding/hex"
     "encoding/json"
@@ -22,7 +23,7 @@ func NewRealtimeHub() *RealtimeHub { return &RealtimeHub{conns: make(map[string]
 func (h *RealtimeHub) HandleWS(w http.ResponseWriter, r *http.Request) {
     deviceID := strings.TrimSpace(r.URL.Query().Get("device_id"))
     if deviceID == "" { http.Error(w, "device_id is required", http.StatusBadRequest); return }
-    c, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true, CompressionMode: websocket.CompressionDisabled})
+    c, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
     if err != nil { return }
     h.mu.Lock()
     if h.conns[deviceID] == nil { h.conns[deviceID] = make(map[*websocket.Conn]struct{}) }
