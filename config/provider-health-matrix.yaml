@@ -1,0 +1,134 @@
+version: 1
+platform: FTN
+name: provider-health-matrix
+
+# Normalized health model for every provider/service. Runtime probes supply
+# observations; GitHub stores only policy and sanitized state snapshots.
+
+matrix:
+  interval_seconds: 15
+  timeout_seconds: 5
+  failure_threshold: 3
+  recovery_threshold: 2
+  observation_window_seconds: 60
+  health_states: [healthy, degraded, failed, unknown, disabled]
+
+providers:
+  cloudflare:
+    services: [api, dns, ddns, edge, tunnel, certificate]
+    probes: [api, dns, tls, http, latency, reachability]
+  dnspod:
+    services: [api, dns, ddns, dns01]
+    probes: [api, dns, tls, latency, reachability]
+  akamai:
+    services: [api, dns, edge]
+    probes: [api, dns, tls, http, latency, reachability]
+  fastly:
+    services: [api, edge, certificate]
+    probes: [api, tls, http, latency, reachability]
+  powerdns-enterprise:
+    services: [api, dns, dnssec, ddns]
+    probes: [api, udp53, tcp53, dnssec, latency]
+  technitium-dns-enterprise:
+    services: [api, dns, recursive, dnssec, ddns]
+    probes: [api, udp53, tcp53, dnssec, latency]
+  coredns:
+    services: [dns, service-discovery]
+    probes: [udp53, tcp53, http, latency]
+  unbound:
+    services: [resolver]
+    probes: [udp53, tcp53, resolver, latency]
+  hickory-dns:
+    services: [resolver]
+    probes: [udp53, tcp53, resolver, latency]
+  duckdns:
+    services: [api, ddns]
+    probes: [api, tls, dns, latency]
+  porkbun:
+    services: [api, dns, ddns, dns01]
+    probes: [api, dns, tls, latency, reachability]
+
+scoring:
+  dimensions:
+    availability: weight-40
+    latency: weight-20
+    dns_correctness: weight-15
+    tls_validity: weight-10
+    api_health: weight-10
+    error_rate: weight-5
+  aggregation: weighted-normalized
+  no_single_probe_override: true
+  stale_observation_state: unknown
+
+routing:
+  source: config/provider-routing.yaml
+  health_gated: true
+  unhealthy_excluded: true
+  degraded_allowed: policy
+  failover: automatic
+  recovery: automatic
+  hysteresis_seconds: 30
+  anycast_withdraw_on_failure: true
+
+service_dependencies:
+  dns:
+    requires: [reachability, dns_correctness]
+  ddns:
+    requires: [api_health, dns_correctness]
+  dns01:
+    requires: [api_health, dns_correctness]
+  edge:
+    requires: [api_health, tls_validity, availability]
+  certificate:
+    requires: [api_health, dns_correctness, tls_validity]
+  anycast:
+    requires: [origin_health, route_health]
+
+outputs:
+  per_provider:
+    - health_state
+    - availability
+    - latency_ms
+    - error_rate
+    - last_success
+    - consecutive_failures
+    - consecutive_successes
+  per_service:
+    - health_state
+    - probe_state
+    - latency_ms
+    - failure_reason
+  control_plane:
+    - selected_provider
+    - failover_state
+    - route_reason_code
+    - drift_state
+
+storage:
+  local_state: true
+  ram_buffer: true
+  postgresql: true
+  opensearch: true
+  github_snapshot: sanitized-only
+
+alerts:
+  source: config/intelligence-alerting.yaml
+  events:
+    - provider_degraded
+    - provider_failed
+    - provider_recovered
+    - service_degraded
+    - service_failed
+    - latency_regression
+    - dns_incorrect
+    - certificate_failure
+    - failover_started
+    - failover_completed
+
+security:
+  credentials_in_git: false
+  secrets_in_git: false
+  raw_provider_responses: false
+  raw_dns_queries: false
+  raw_packets: false
+  private_runtime_data: false
