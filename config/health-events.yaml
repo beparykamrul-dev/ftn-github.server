@@ -1,0 +1,62 @@
+version: 1
+platform: FTN
+name: health-events
+
+health:
+  states: [healthy, degraded, unhealthy, unknown, disabled]
+  sources: [dns, anycast, bgp, ddns, provider, node, service, certificate, control-plane]
+  interval_seconds: 15
+  timeout_seconds: 5
+
+severity:
+  levels: [info, warning, critical]
+  escalation:
+    warning_after_failures: 2
+    critical_after_failures: 3
+
+checks:
+  dns: [udp53, tcp53, dnssec]
+  http: [http, https]
+  network: [tcp, latency]
+  routing: [bgp-session, route-health]
+  provider: [api, dns]
+  certificate: [expiry, renewal]
+
+failure_actions:
+  degraded:
+    - mark_unhealthy_candidate
+    - reduce_route_preference
+  unhealthy:
+    - exclude_from_selection
+    - trigger_failover
+  critical:
+    - withdraw_anycast_if_authorized
+    - notify_control_plane
+
+recovery:
+  require_healthy_checks: 2
+  hysteresis_seconds: 30
+  automatic_restore: true
+
+health_event:
+  fields:
+    - event_id
+    - timestamp
+    - source
+    - target_type
+    - target_id
+    - severity
+    - state
+    - code
+    - latency_ms
+    - request_id
+  message: reference_only
+
+telemetry:
+  ram_buffer: true
+  batch: true
+  github_snapshot: sanitized
+  raw_packets: false
+  raw_payloads: false
+  credentials: false
+  secrets: false
