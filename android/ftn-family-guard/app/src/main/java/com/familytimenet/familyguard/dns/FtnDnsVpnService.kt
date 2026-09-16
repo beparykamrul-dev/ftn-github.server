@@ -7,19 +7,22 @@ import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.familytimenet.familyguard.core.filter.RuleEngine
+import com.familytimenet.familyguard.core.filter.FamilyGuardFilter
 import com.familytimenet.familyguard.core.model.FamilyPolicy
+import com.familytimenet.familyguard.core.usage.UsageAggregator
 
 /**
- * User-visible VPN shell for DNS protection.
+ * User-visible VPN shell for Family Guard.
  *
- * This service intentionally does not inspect application payloads. A complete
- * packet/TUN forwarding implementation must be added as a separate, tested
- * transport module before production traffic is routed through the VPN.
+ * The service owns the local TUN interface and policy decision layer. It does not
+ * inspect application payloads or message contents. Full DNS packet forwarding is
+ * intentionally kept separate until a tested transport implementation is available.
  */
 class FtnDnsVpnService : VpnService() {
-    private val ruleEngine = RuleEngine { FamilyPolicy.default() }
     private var tunnel: android.os.ParcelFileDescriptor? = null
+    private var activePolicy: FamilyPolicy = FamilyPolicy.default()
+    private val filter = FamilyGuardFilter { activePolicy }
+    private val usage = UsageAggregator()
 
     override fun onCreate() {
         super.onCreate()
@@ -38,9 +41,36 @@ class FtnDnsVpnService : VpnService() {
         return START_STICKY
     }
 
+    fun activatePolicy(policy: FamilyPolicy) {
+        require(policy.version > 0)
+        require(!policy.privacy.rawDnsLogging)
+        require(!policy.privacy.payloadInspection)
+        activePolicy = policy
+    }
+
+    fun evaluateDomain(domain: String) = filter.evaluateDomain(domain).also {
+        if (it.action == com.familytimenet.familyguard.core.filter.FilterDecision.Action.ALLOW) {
+            usage.recordAllowed()
+        } else {
+            usage.recordBlocked()
+        }
+    }
+
+    fun evaluateIpv4(address: String) = filter.evaluateIpv4(address).also {
+        if (it.action == com.familytimenet.familyguard.core.filter.FilterDecision.Action.ALLOW) {
+            usage.recordAllowed()
+        } else {
+            usage.recordBlocked()
+        }
+    }
+
+    fun usageSnapshot(deviceId: String, windowStart: Long, windowEnd: Long) =
+        usage.snapshot(deviceId, windowStart, windowEnd)
+
     override fun onDestroy() {
         tunnel?.close()
         tunnel = null
+        usage.reset()
         super.onDestroy()
     }
 
@@ -58,11 +88,7 @@ class FtnDnsVpnService : VpnService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(
-                NotificationChannel(
-                    CHANNEL_ID,
-                    "FTN Family Guard",
-                    NotificationManager.IMPORTANCE_LOW
-                )
+                NotificationChannel(CHANNEL_ID, "FTN Family Guard", NotificationManager.IMPORTANCE_LOW)
             )
         }
     }
