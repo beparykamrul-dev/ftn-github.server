@@ -15,15 +15,8 @@ android {
         versionName = "0.1.0"
     }
 
-    buildFeatures {
-        buildConfig = true
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-        }
-    }
+    buildFeatures { buildConfig = true }
+    buildTypes { release { isMinifyEnabled = false } }
 }
 
 dependencies {
@@ -33,4 +26,5 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.10.0")
     implementation("androidx.datastore:datastore-preferences:1.1.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
