@@ -1,0 +1,134 @@
+version: 1
+platform: FTN
+name: intelligence-api
+
+# FTN Control Plane API contract for defensive network intelligence.
+# Runtime authentication, endpoints and secrets are supplied outside Git.
+
+api:
+  base_path: /api/v1/intelligence
+  transport: https
+  format: json
+  read_only_search: true
+  audit: true
+  pagination: cursor
+  request_id: required
+
+endpoints:
+  search:
+    method: GET
+    path: /search
+    query: [q, entity, type, time_from, time_to, source, confidence, geo, provider]
+    returns: [entities, relationships, total_estimate, next_cursor]
+  entity:
+    method: GET
+    path: /entities/{type}/{id}
+    returns: [entity, relationships, observations, changes]
+  graph:
+    method: GET
+    path: /graph/{type}/{id}
+    query: [depth, direction, relationship_type]
+    returns: [nodes, edges]
+  timeline:
+    method: GET
+    path: /timeline/{type}/{id}
+    query: [time_from, time_to]
+    returns: [changes, observations]
+  health:
+    method: GET
+    path: /health/{type}/{id}
+    returns: [health_state, latency_ms, checks, recent_events]
+  routes:
+    method: GET
+    path: /routes/{ip_or_prefix}
+    returns: [routes, bgp_sessions, asn, providers]
+  dns:
+    method: GET
+    path: /dns/{domain}
+    returns: [records, nameservers, dnssec, addresses]
+  vulnerability:
+    method: GET
+    path: /vulnerabilities/{asset}
+    returns: [cpe, cve, firmware, advisory, remediation_state]
+
+filters:
+  supported:
+    - ip
+    - ipv6
+    - asn
+    - prefix
+    - domain
+    - dns-record
+    - nameserver
+    - whois
+    - rdap
+    - route
+    - bgp
+    - certificate
+    - cpe
+    - cve
+    - firmware
+    - chipset
+    - baseband
+    - provider
+    - node
+    - service
+    - sensor
+    - country
+    - region
+    - city
+    - colo
+    - latency
+    - health
+    - timestamp
+    - source
+
+realtime:
+  enabled: true
+  transport: websocket
+  path: /api/v1/intelligence/stream
+  events:
+    - dns.change
+    - route.change
+    - bgp.change
+    - certificate.change
+    - provider.health
+    - node.health
+    - service.health
+    - reachability.change
+    - vulnerability.match
+    - censorship.observation
+  delivery:
+    ordered: true
+    reconnect: true
+    cursor_resume: true
+    heartbeat_seconds: 20
+  payload:
+    metadata_only: true
+    raw_packets: false
+    raw_payloads: false
+    credentials: false
+    secrets: false
+
+storage:
+  search: opensearch
+  durable: postgresql
+  backup: kopia
+  cache: local
+  ram_buffer: true
+  source_registry: config/intelligence-correlation.yaml
+  index_registry: config/opensearch-indexes.yaml
+  query_contract: config/intelligence-query.yaml
+
+security:
+  auth: external
+  rbac: true
+  roles: [super-admin, admin, engineer, operator, viewer]
+  public_osint_only: true
+  authorized_sensors_only: true
+  mutations: disabled
+  exploit_execution: false
+  credential_collection: false
+  user_tracking: false
+  surveillance_interception: false
+  secrets_in_response: false
