@@ -1,0 +1,31 @@
+version: 1
+registry: ftn-service-git
+source_registry: config/github-registry.yaml
+
+# GitHub repository -> FTN service/node binding.
+# Runtime secrets stay outside GitHub.
+# No arbitrary shell commands are accepted here.
+repositories:
+  - id: ftn-github.server
+    owner: beparykamrul-dev
+    repository: ftn-github.server
+    branch: main
+    node: control-plane
+    service: control-plane
+    source_path: /opt/ftn-github.server
+    sync: metadata
+    build: registered
+    deploy: approval-required
+    health: http://127.0.0.1:8080/healthz
+
+policy:
+  allow_registered_repositories_only: true
+  allow_registered_nodes_only: true
+  allow_registered_services_only: true
+  allowlisted_build_profiles_only: true
+  approval_required_for_deploy: true
+  approval_required_for_rollback: true
+  preserve_existing_runtime: true
+  no_secret_export: true
+  no_raw_traffic_export: true
+  no_private_runtime_data_export: true
