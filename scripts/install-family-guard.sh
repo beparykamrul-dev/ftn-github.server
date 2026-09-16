@@ -41,12 +41,18 @@ EOF
   chmod 600 "$ENV_FILE"
 fi
 
-if id ftn >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; then
-  install -m 0644 "$ROOT/systemd/ftn-family-guard.service.example" /etc/systemd/system/ftn-family-guard.service
+if command -v systemctl >/dev/null 2>&1; then
+  if [ -f "$ROOT/systemd/ftn-family-guard.service.example" ]; then
+    install -m 0644 "$ROOT/systemd/ftn-family-guard.service.example" /etc/systemd/system/ftn-family-guard.service
+    systemctl daemon-reload
+    systemctl enable --now "$SERVICE"
+    systemctl --no-pager --full status "$SERVICE"
+  fi
+  install -m 0644 "$ROOT/systemd/ftn-git-sync.service" /etc/systemd/system/ftn-git-sync.service
+  install -m 0644 "$ROOT/systemd/ftn-git-sync.timer" /etc/systemd/system/ftn-git-sync.timer
   systemctl daemon-reload
-  systemctl enable --now "$SERVICE"
-  systemctl --no-pager --full status "$SERVICE"
-else
-  echo "Binary ready: $BIN"
-  echo "Run: FTN_FAMILY_GUARD_ADDR=:8095 $BIN"
+  systemctl enable --now ftn-git-sync.timer
 fi
+
+echo "Family Guard binary: $BIN"
+echo "Git registry: $ROOT/config/github-repositories.generated.yaml"
