@@ -1,0 +1,22 @@
+[Unit]
+Description=FTN Family Guard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ftn
+Group=ftn
+WorkingDirectory=/opt/ftn-family-guard/backend/family-guard
+EnvironmentFile=/etc/ftn/family-guard.env
+ExecStart=/opt/ftn-family-guard/bin/ftn-family-guard
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ftn-family-guard
+
+[Install]
+WantedBy=multi-user.target
