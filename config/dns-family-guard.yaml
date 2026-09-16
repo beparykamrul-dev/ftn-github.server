@@ -1,0 +1,255 @@
+version: 1
+platform: FTN
+name: dns-family-guard
+
+# Unified DNS usage visibility, IP/domain filtering and Family Guard policy.
+# Filtering is policy-driven. Raw browsing content and credentials are never exported.
+
+usage_visibility:
+  enabled: true
+  dimensions:
+    - client_device
+    - device_group
+    - user_profile
+    - resolver
+    - authoritative_provider
+    - domain
+    - domain_category
+    - resolved_ip
+    - asn
+    - provider
+    - country
+    - region
+    - node
+    - service
+    - timestamp
+  relationships:
+    client_to_dns: true
+    dns_to_domain: true
+    domain_to_ip: true
+    ip_to_asn: true
+    asn_to_provider: true
+    dns_to_service: true
+    service_to_node: true
+  actions:
+    - allowed
+    - blocked
+    - redirected
+    - sinkholed
+    - failed
+    - cached
+  raw_query_logging: false
+  aggregate_only: true
+
+filter_engine:
+  enabled: true
+  modes:
+    domain: true
+    ip: true
+    cidr: true
+    hostname: true
+    category: true
+    dns_response: true
+  default_action: allow
+  precedence:
+    - emergency_block
+    - explicit_allow
+    - explicit_block
+    - family_policy
+    - category_policy
+    - reputation_policy
+    - default_action
+  safeguards:
+    allowlist_override: true
+    audit_every_mutation: true
+    dry_run: true
+    rollback: true
+    idempotent: true
+    health_gated: true
+
+ip_filter:
+  ipv4: true
+  ipv6: true
+  cidr: true
+  allowlist: true
+  blocklist: true
+  temporary_blocks: true
+  expiration_required_for_temporary: true
+  reason_required: true
+  source_labels:
+    - local-policy
+    - family-guard
+    - malware-reputation
+    - phishing-reputation
+    - operator-review
+  never_block_private_ranges_by_default: true
+
+site_filter:
+  domain: true
+  subdomain: true
+  wildcard: true
+  category_policy: true
+  safe_search: true
+  malicious_domain_protection: true
+  phishing_protection: true
+  newly_registered_domain_policy: runtime
+  custom_allowlist: true
+  custom_blocklist: true
+  block_page: control-plane
+
+categories:
+  policy_groups:
+    family-safe:
+      default: allow
+      protection: [malware, phishing]
+    child:
+      protection: [malware, phishing]
+      safe_search: true
+      category_rules: runtime
+    teen:
+      protection: [malware, phishing]
+      safe_search: true
+      category_rules: runtime
+    custom:
+      category_rules: runtime
+
+family_guard:
+  enabled: true
+  local_first: true
+  profiles:
+    device: true
+    family: true
+    child: true
+    schedule: true
+  controls:
+    dns_filtering: true
+    ip_filtering: true
+    domain_filtering: true
+    safe_search: true
+    category_filtering: true
+    malicious_domain_block: true
+    phishing_block: true
+    schedule: true
+    pause_internet: true
+  schedule:
+    enabled: true
+    timezone: runtime
+    windows: runtime
+  privacy:
+    raw_domains_in_parent_ui: policy-controlled
+    raw_query_payloads: false
+    content_interception: false
+    credentials: false
+
+android:
+  app:
+    name: FTN Family Guard
+    platform: android
+    enabled: true
+  enrollment:
+    device_registration: true
+    device_id: runtime
+    profile_binding: true
+    secure_token: external
+  dns:
+    profile_sync: true
+    resolver_status: true
+    dns_health: true
+    encrypted_dns: runtime
+    local_vpn_mode: supported-where-permitted
+    private_dns_integration: supported-where-permitted
+  policy:
+    pull: true
+    push: true
+    versioned: true
+    rollback: true
+    offline_cache: true
+  dashboard:
+    dns_status: true
+    resolver: true
+    allowed_count: true
+    blocked_count: true
+    category_summary: true
+    policy_state: true
+    device_health: true
+  realtime:
+    websocket: true
+    reconnect: true
+    heartbeat: true
+  notifications:
+    policy_change: true
+    device_offline: true
+    dns_failure: true
+    important_security_event: true
+
+control_plane:
+  api:
+    usage_summary: /api/v1/dns/usage
+    clients: /api/v1/dns/clients
+    domains: /api/v1/dns/domains
+    ip_rules: /api/v1/dns/ip-rules
+    domain_rules: /api/v1/dns/domain-rules
+    categories: /api/v1/dns/categories
+    family_profiles: /api/v1/family/profiles
+    devices: /api/v1/family/devices
+    policies: /api/v1/family/policies
+    android_enrollment: /api/v1/family/android/enroll
+  websocket:
+    usage: /api/v1/dns/usage/stream
+    policy: /api/v1/family/policy/stream
+    device: /api/v1/family/device/stream
+  authorization:
+    role_based: true
+    least_privilege: true
+    parent_controls_only: true
+    audit: true
+
+monitoring:
+  dns:
+    qps: true
+    latency: true
+    response_code: true
+    servfail: true
+    nxdomain: true
+    timeout: true
+    dnssec: true
+    resolver_health: true
+  filter:
+    rule_hits: true
+    block_rate: true
+    allow_rate: true
+    false_positive_review: true
+    rule_drift: true
+  family_guard:
+    device_online: true
+    policy_sync: true
+    policy_version: true
+    dns_health: true
+
+storage:
+  local_state: true
+  ram_buffer: true
+  postgresql: true
+  opensearch: true
+  retention: runtime-policy
+  github_snapshot: sanitized-policy-and-aggregates
+
+telemetry:
+  metrics_only: true
+  aggregate_usage: true
+  raw_dns_queries: false
+  raw_browsing_content: false
+  raw_packets: false
+  raw_payloads: false
+  credentials: false
+  secrets: false
+  private_ips: false
+
+security:
+  default_read_only_monitoring: true
+  mutations_require_authorization: true
+  explicit_delete_policy: true
+  destructive_migration: false
+  unauthorized_dns_changes: false
+  user_tracking: false
+  content_interception: false
