@@ -20,13 +20,10 @@ class FamilyGuardSyncManager(
     enum class Source { NETWORK, CACHE, DEFAULT }
 
     suspend fun sync(deviceId: String, sessionReference: String): SyncResult {
-        val result = runCatching {
-            policyClient.fetchPolicy(deviceId, sessionReference)
-        }.getOrNull()
-
+        val result = runCatching { policyClient.fetchPolicy(deviceId, sessionReference) }.getOrNull()
         val networkPolicy = result?.policy
         if (networkPolicy != null && validatePolicy(networkPolicy)) {
-            activate(deviceId, sessionReference, networkPolicy, result.policyJson)
+            activate(deviceId, sessionReference, networkPolicy, result.rawJson)
             return SyncResult(networkPolicy, Source.NETWORK)
         }
 
@@ -43,13 +40,10 @@ class FamilyGuardSyncManager(
         return SyncResult(policyRepository.defaultPolicy(), Source.DEFAULT)
     }
 
-    fun startRealtime(deviceId: String, sessionReference: String) {
+    fun startRealtime(deviceId: String, sessionReference: String) =
         realtimeClient.start(deviceId, sessionReference)
-    }
 
-    fun stopRealtime() {
-        realtimeClient.stop()
-    }
+    fun stopRealtime() = realtimeClient.stop()
 
     fun handleRealtimeEvent(deviceId: String, sessionReference: String, text: String) {
         val event = runCatching { RealtimeEvent.parse(text) }.getOrNull() ?: return
@@ -85,9 +79,7 @@ class FamilyGuardSyncManager(
         policyRepository.activate(policy)
         versionStore.activate(policy.version)
         if (!originalJson.isNullOrBlank()) offlineCache.save(originalJson)
-        runCatching {
-            policyAckClient.acknowledge(deviceId, sessionReference, policy.version)
-        }
+        runCatching { policyAckClient.acknowledge(deviceId, sessionReference, policy.version) }
     }
 
     private fun validatePolicy(policy: FamilyPolicy): Boolean =
