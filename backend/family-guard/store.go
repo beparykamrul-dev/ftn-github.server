@@ -3,7 +3,7 @@ package main
 import (
     "context"
     "database/sql"
-    _ "embed"
+    "embed"
     "fmt"
     "os"
     "time"
