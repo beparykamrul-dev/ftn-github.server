@@ -1,0 +1,69 @@
+version: 1
+platform: FTN
+name: provider-adapter-contract
+
+adapter:
+  purpose: normalize-provider-capabilities
+  authentication: external-secret-store
+  endpoint: runtime
+  timeout_seconds: 10
+  retry:
+    max_attempts: 3
+    exponential_backoff: true
+
+operations:
+  zone:
+    - list
+    - get
+    - create
+    - update
+    - delete
+  record:
+    - list
+    - get
+    - upsert
+    - delete
+  dnssec:
+    - get_status
+    - enable
+    - disable
+  ddns:
+    - update
+    - reconcile
+  health:
+    - check
+    - status
+  certificate:
+    - dns01_authorization
+
+response_contract:
+  required: [provider, operation, request_id, status]
+  status_values: [ok, degraded, failed, unsupported]
+  normalize_errors: true
+  expose_credentials: false
+  expose_secrets: false
+
+safeguards:
+  allowlist: true
+  dry_run: true
+  idempotent: true
+  audit: true
+  health_gated: true
+  never_delete_on_provider_error: true
+  destructive_migration: false
+
+providers:
+  - cloudflare
+  - dnspod
+  - akamai
+  - powerdns-enterprise
+  - technitium-dns-enterprise
+  - coredns
+  - duckdns
+  - porkbun
+
+state:
+  source_of_truth: control-plane
+  database: postgresql
+  cache: local
+  github: sanitized-capability-snapshots
