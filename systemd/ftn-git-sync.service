@@ -1,0 +1,9 @@
+[Unit]
+Description=FTN connected GitHub repository sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/ftn/github-sync.env
+ExecStart=/opt/ftn-github.server/scripts/sync-all-git.sh
