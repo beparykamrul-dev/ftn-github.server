@@ -1,0 +1,174 @@
+version: 1
+platform: FTN
+name: intelligence-correlation
+
+# Unified defensive intelligence graph. It correlates public/authorized
+# observations without storing raw packets, credentials, secrets or payloads.
+
+graph:
+  enabled: true
+  entity_key: observation-id
+  entities:
+    - ip
+    - ipv6
+    - prefix
+    - asn
+    - domain
+    - dns-record
+    - nameserver
+    - whois
+    - rdap
+    - route
+    - bgp-session
+    - certificate
+    - cpe
+    - cve
+    - firmware
+    - chipset
+    - baseband
+    - provider
+    - node
+    - service
+    - sensor
+    - geo
+    - health-event
+  relationships:
+    - ip-to-prefix
+    - prefix-to-asn
+    - ip-to-asn
+    - ip-to-dns
+    - dns-to-ip
+    - domain-to-nameserver
+    - domain-to-whois
+    - domain-to-rdap
+    - domain-to-certificate
+    - asn-to-route
+    - prefix-to-route
+    - route-to-provider
+    - bgp-to-prefix
+    - hardware-to-cpe
+    - cpe-to-cve
+    - firmware-to-cve
+    - chipset-to-cve
+    - baseband-to-advisory
+    - provider-to-node
+    - node-to-service
+    - node-to-geo
+    - node-to-health
+    - sensor-to-observation
+
+normalization:
+  required_fields: [observation_id, timestamp, source, entity_type]
+  canonicalization:
+    ip: true
+    ipv6: true
+    domain: true
+    asn: true
+    prefix: true
+    dns: true
+    rdap: true
+    route: true
+    certificate: true
+    cpe: true
+    cve: true
+  deduplication: true
+  confidence_score: true
+  source_attribution: true
+
+sources:
+  public_intelligence:
+    - rdap
+    - whois
+    - dns
+    - bgp
+    - route
+    - certificate-transparency
+    - public-security-advisories
+    - vendor-advisories
+  authorized_sensors:
+    - kismet
+    - node-health
+    - service-health
+    - network-probes
+
+search:
+  unified: true
+  exact_match: true
+  fuzzy_match: true
+  relationship_traversal: true
+  time_range: true
+  source_filter: true
+  confidence_filter: true
+  examples:
+    - ip
+    - asn
+    - prefix
+    - domain
+    - nameserver
+    - whois
+    - rdap
+    - route
+    - bgp
+    - certificate
+    - cpe
+    - cve
+    - firmware
+    - provider
+    - node
+    - service
+
+correlation:
+  ip_asn_dns: true
+  dns_whois_rdap: true
+  route_bgp_provider: true
+  certificate_domain: true
+  hardware_cpe_cve: true
+  firmware_chipset_baseband_advisory: true
+  node_service_health: true
+  geo_latency_health: true
+  censorship_reachability: true
+
+risk_intelligence:
+  mode: defensive
+  vulnerability_sources: public-advisories-only
+  exploit_execution: false
+  exploit_payloads: false
+  credential_collection: false
+  unauthorized_targeting: false
+  severity: informational-and-remediation
+
+storage:
+  hot_search: opensearch
+  durable_state: postgresql
+  backup: kopia
+  ram_buffer: true
+  retention: policy-driven
+  github: sanitized-metadata-snapshots-only
+
+privacy:
+  raw_packets: false
+  raw_payloads: false
+  raw_dns_queries: false
+  credentials: false
+  secrets: false
+  private_personal_data: false
+  user_tracking: false
+
+observability:
+  dimensions: [ip, asn, dns, whois, rdap, route, bgp, certificate, cve, provider, node, service, geo, latency, health]
+  alert_on:
+    - route_change
+    - dns_change
+    - provider_degradation
+    - certificate_expiry
+    - vulnerability_match
+    - reachability_change
+  audit_queries: true
+
+safety:
+  authorized_and_public_sources_only: true
+  destructive_actions: false
+  production_exploit_execution: false
+  persistence: false
+  lateral_movement: false
+  credential_dumping: false
