@@ -1,0 +1,107 @@
+version: 1
+platform: FTN
+name: control-plane-api
+
+# Normalized control-plane contract. Authentication, tokens and live endpoints
+# are runtime configuration; secrets are never committed here.
+api:
+  base_path: /api
+  version: v1
+  transport: https
+  formats: [json]
+  idempotency: required_for_mutations
+  audit: required
+  dry_run: supported
+
+resources:
+  dns:
+    read: [list_zones, get_zone, list_records, get_dnssec]
+    write: [create_zone, update_zone, upsert_record, delete_record, set_dnssec]
+  anycast:
+    read: [list_sites, list_routes, get_route_health]
+    write: [advertise, withdraw, recover]
+  ddns:
+    read: [list_records, get_provider_state]
+    write: [update_record, reconcile]
+  geo:
+    read: [get_policy, get_decision, get_latency]
+    write: [update_policy]
+  providers:
+    read: [list, capabilities, health]
+    write: [enable, disable, reconcile]
+  health:
+    read: [summary, services, nodes, events]
+  certificates:
+    read: [list, status]
+    write: [issue, renew, revoke]
+  nodes:
+    read: [list, status, capabilities]
+
+routes:
+  - method: GET
+    path: /api/v1/dns/zones
+    operation: list_zones
+  - method: GET
+    path: /api/v1/dns/zones/{zone}
+    operation: get_zone
+  - method: PUT
+    path: /api/v1/dns/zones/{zone}/records/{name}
+    operation: upsert_record
+  - method: GET
+    path: /api/v1/anycast/routes
+    operation: list_routes
+  - method: POST
+    path: /api/v1/anycast/routes/{route}/advertise
+    operation: advertise
+  - method: POST
+    path: /api/v1/anycast/routes/{route}/withdraw
+    operation: withdraw
+  - method: GET
+    path: /api/v1/ddns/records
+    operation: list_records
+  - method: POST
+    path: /api/v1/ddns/reconcile
+    operation: reconcile
+  - method: GET
+    path: /api/v1/geo/decision
+    operation: get_decision
+  - method: GET
+    path: /api/v1/providers
+    operation: list
+  - method: GET
+    path: /api/v1/providers/{provider}/health
+    operation: health
+  - method: GET
+    path: /api/v1/health/summary
+    operation: summary
+  - method: GET
+    path: /api/v1/health/events
+    operation: events
+  - method: GET
+    path: /api/v1/certificates
+    operation: list
+  - method: GET
+    path: /api/v1/nodes
+    operation: list
+
+auth:
+  mode: external
+  required: true
+  roles: [super-admin, admin, engineer, operator, viewer]
+  provider_credentials: external_secret_store
+
+safety:
+  mutation_requires_audit: true
+  mutation_requires_idempotency_key: true
+  destructive_migration: false
+  unauthorized_bgp_advertisement: false
+  raw_packets: false
+  raw_payloads: false
+  secrets_in_response: false
+  credentials_in_response: false
+
+state:
+  source_of_truth: postgresql
+  cache: local
+  ram_buffer: true
+  github: sanitized_snapshot_only
