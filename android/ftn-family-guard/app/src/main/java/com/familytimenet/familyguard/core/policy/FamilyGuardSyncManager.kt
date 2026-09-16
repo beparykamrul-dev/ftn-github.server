@@ -19,23 +19,23 @@ class FamilyGuardSyncManager(
     data class SyncResult(val policy: FamilyPolicy, val source: Source)
     enum class Source { NETWORK, CACHE, DEFAULT }
 
-    fun sync(deviceId: String, sessionReference: String): SyncResult {
+    suspend fun sync(deviceId: String, sessionReference: String): SyncResult {
         val result = runCatching {
             policyClient.fetchPolicy(deviceId, sessionReference)
         }.getOrNull()
 
         val networkPolicy = result?.policy
         if (networkPolicy != null && validatePolicy(networkPolicy)) {
-            activate(deviceId, sessionReference, networkPolicy, null)
+            activate(deviceId, sessionReference, networkPolicy, result.policyJson)
             return SyncResult(networkPolicy, Source.NETWORK)
         }
 
-        val cached = runCatching { kotlinx.coroutines.runBlocking { offlineCache.load() } }
-            .getOrNull()
+        val cached = runCatching { offlineCache.load() }.getOrNull()
         if (!cached.isNullOrBlank()) {
             val policy = runCatching { PolicyJsonParser.parse(cached) }.getOrNull()
             if (policy != null && validatePolicy(policy)) {
-                runCatching { kotlinx.coroutines.runBlocking { policyRepository.activate(policy) } }
+                policyRepository.activate(policy)
+                versionStore.activate(policy.version)
                 return SyncResult(policy, Source.CACHE)
             }
         }
@@ -66,9 +66,7 @@ class FamilyGuardSyncManager(
                     }
                 }
             }
-            is RealtimeEvent.DeviceCommand -> {
-                // Commands are deliberately not executed here; a separate authorized command layer owns them.
-            }
+            is RealtimeEvent.DeviceCommand -> Unit
             is RealtimeEvent.Heartbeat,
             is RealtimeEvent.UsageSummary,
             is RealtimeEvent.Unknown -> Unit
@@ -86,7 +84,7 @@ class FamilyGuardSyncManager(
 
         policyRepository.activate(policy)
         versionStore.activate(policy.version)
-        offlineCache.save(originalJson ?: policyJsonFallback(policy))
+        if (!originalJson.isNullOrBlank()) offlineCache.save(originalJson)
         runCatching {
             policyAckClient.acknowledge(deviceId, sessionReference, policy.version)
         }
@@ -97,7 +95,4 @@ class FamilyGuardSyncManager(
             !policy.privacy.rawDnsLogging &&
             !policy.privacy.payloadInspection &&
             policy.privacy.aggregateUsageOnly
-
-    private fun policyJsonFallback(policy: FamilyPolicy): String =
-        "{\"version\":${policy.version},\"profile\":\"${policy.profile.name}\"}"
 }
