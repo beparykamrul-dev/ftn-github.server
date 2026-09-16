@@ -1,0 +1,76 @@
+version: 1
+platform: FTN
+name: geo-latency-engine
+
+engine:
+  enabled: true
+  decision_mode: health-latency-geo
+  local_cache: true
+  minimum_observation_count: 3
+
+inputs:
+  health:
+    - dns
+    - tcp
+    - http
+    - resolver
+    - origin
+  latency:
+    - client_rtt
+    - tcp_rtt
+    - quic_rtt
+    - dns_rtt
+  geography:
+    - country
+    - region
+    - city
+    - timezone
+    - colo
+    - provider
+  capacity:
+    - node_load
+    - connection_count
+    - error_rate
+
+selection:
+  order:
+    - health
+    - latency
+    - geo
+    - capacity
+    - provider_policy
+  unhealthy_nodes_excluded: true
+  automatic_failover: true
+  automatic_recovery: true
+  hysteresis_seconds: 30
+
+routing_modes:
+  geo: true
+  latency: true
+  health: true
+  provider: true
+  anycast: true
+  dns: true
+  http: true
+
+privacy:
+  data_minimization: true
+  raw_dns_queries: false
+  raw_packets: false
+  payload_export: false
+  credentials: false
+  secrets: false
+
+outputs:
+  - selected_node
+  - selected_provider
+  - route_reason_code
+  - health_state
+  - latency_ms
+  - failover_state
+
+state:
+  control_plane: true
+  database: postgresql
+  ram_buffer: true
+  github: sanitized-snapshot-only
