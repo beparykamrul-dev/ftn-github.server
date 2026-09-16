@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${FTN_FAMILY_GUARD_ROOT:-/opt/ftn-family-guard}"
+REPO="${FTN_FAMILY_GUARD_REPO:-https://github.com/beparykamrul-dev/ftn-github.server.git}"
+BRANCH="${FTN_FAMILY_GUARD_BRANCH:-main}"
+BIN="$ROOT/bin/ftn-family-guard"
+ENV_DIR="/etc/ftn"
+ENV_FILE="$ENV_DIR/family-guard.env"
+SERVICE="ftn-family-guard"
+
+command -v git >/dev/null || { echo "git is required"; exit 1; }
+command -v go >/dev/null || { echo "Go 1.23+ is required"; exit 1; }
+
+mkdir -p "$ROOT" "$ROOT/bin" "$ENV_DIR"
+if [ -d "$ROOT/.git" ]; then
+  git -C "$ROOT" fetch origin "$BRANCH"
+  git -C "$ROOT" checkout "$BRANCH"
+  git -C "$ROOT" pull --ff-only origin "$BRANCH"
+else
+  rm -rf "$ROOT"
+  git clone --branch "$BRANCH" --depth 1 "$REPO" "$ROOT"
+fi
+
+cd "$ROOT/backend/family-guard"
+go mod download
+go test ./...
+go build -trimpath -ldflags='-s -w' -o "$BIN" .
+
+if [ ! -f "$ENV_FILE" ]; then
+  cat > "$ENV_FILE" <<'EOF'
+FTN_FAMILY_GUARD_ADDR=:8095
+FTN_FAMILY_GUARD_ALLOWED_ORIGIN=
+FTN_FAMILY_GUARD_API_TOKEN=
+FTN_FAMILY_GUARD_DATABASE_URL=
+EOF
+  chmod 600 "$ENV_FILE"
+fi
+
+if id ftn >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; then
+  install -m 0644 "$ROOT/systemd/ftn-family-guard.service.example" /etc/systemd/system/ftn-family-guard.service
+  systemctl daemon-reload
+  systemctl enable --now "$SERVICE"
+  systemctl --no-pager --full status "$SERVICE"
+else
+  echo "Binary ready: $BIN"
+  echo "Run: FTN_FAMILY_GUARD_ADDR=:8095 $BIN"
+fi
