@@ -1,0 +1,129 @@
+version: 1
+platform: FTN
+name: provider-sync
+
+# Unified reconciliation plane for provider state -> FTN Control Plane.
+# GitHub stores policy and sanitized snapshots only. Live state and secrets
+# remain on the runtime nodes/control plane.
+
+sync:
+  enabled: true
+  mode: reconcile
+  source: provider-runtime
+  destination: ftn-control-plane
+  direction: bidirectional-policy-state
+  interval_seconds: 30
+  jitter_seconds: 5
+  batch_size: 100
+  concurrency: 4
+  idempotent: true
+
+providers:
+  cloudflare:
+    enabled: true
+    capabilities: [dns, ddns, edge, tunnel, certificate, health]
+  dnspod:
+    enabled: true
+    capabilities: [dns, ddns, dns01, health]
+  akamai:
+    enabled: true
+    capabilities: [dns, edge, health]
+  fastly:
+    enabled: true
+    capabilities: [edge, certificate, health]
+  powerdns-enterprise:
+    enabled: true
+    capabilities: [dns, dnssec, ddns, health]
+  technitium-dns-enterprise:
+    enabled: true
+    capabilities: [dns, recursive, dnssec, ddns, health]
+  coredns:
+    enabled: true
+    capabilities: [dns, service-discovery, health]
+  unbound:
+    enabled: true
+    capabilities: [resolver, health]
+  hickory-dns:
+    enabled: true
+    capabilities: [resolver, health]
+  duckdns:
+    enabled: true
+    capabilities: [ddns, health]
+  porkbun:
+    enabled: true
+    capabilities: [dns, ddns, dns01, health]
+
+state_domains:
+  - dns-zones
+  - dns-records
+  - dnssec
+  - ddns
+  - provider-health
+  - edge-health
+  - certificates
+  - geo-policy
+  - latency-policy
+  - failover-state
+  - anycast-state
+
+reconciliation:
+  compare: desired-vs-observed
+  desired_source: control-plane-policy
+  observed_source: provider-runtime
+  conflict_policy: preserve-observed-and-raise-event
+  mutation_policy: allowlisted-only
+  health_gate: true
+  dry_run_supported: true
+  delete_policy: explicit-allowlist
+  never_delete_on_provider_error: true
+  rollback_on_partial_failure: true
+
+ordering:
+  - provider-connectivity
+  - authentication-state
+  - health-state
+  - dns-state
+  - certificate-state
+  - edge-state
+  - routing-policy
+  - failover-state
+
+failure_handling:
+  retry: true
+  max_attempts: 3
+  exponential_backoff: true
+  provider_isolation: true
+  circuit_breaker: true
+  automatic_failover: true
+  automatic_recovery: true
+  alert_on_drift: true
+
+control_plane:
+  api: config/control-plane-api.yaml
+  adapter_contract: config/provider-adapter-contract.yaml
+  routing: config/provider-routing.yaml
+  endpoints: config/provider-endpoints.yaml
+  registry: config/provider-registry.yaml
+  database: postgresql
+  pooler: pgbouncer
+  cache: local
+
+observability:
+  events: config/health-events.yaml
+  alerts: config/intelligence-alerting.yaml
+  search: opensearch
+  websocket: true
+  ram_buffer: true
+  metrics: true
+  github_snapshot: sanitized-reconciliation-state
+
+security:
+  secrets_source: external-secret-store
+  credentials_source: external-runtime
+  tokens_in_git: false
+  passwords_in_git: false
+  private_keys_in_git: false
+  raw_provider_payloads_in_git: false
+  raw_packets: false
+  raw_dns_queries: false
+  destructive_migration: false
