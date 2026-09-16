@@ -1,0 +1,75 @@
+version: 1
+platform: FTN
+name: opensearch-indexes
+
+opensearch:
+  enabled: true
+  index_prefix: ftn
+  aliases:
+    current: true
+    read_only_snapshots: true
+
+indexes:
+  assets:
+    pattern: ftn-assets-v*
+    entities: [ip, ipv6, prefix, asn, domain, provider, node, service]
+  dns:
+    pattern: ftn-dns-v*
+    entities: [dns-record, nameserver, domain]
+  routing:
+    pattern: ftn-routing-v*
+    entities: [route, bgp-session, prefix, asn]
+  certificates:
+    pattern: ftn-certificates-v*
+    entities: [certificate, domain]
+  vulnerabilities:
+    pattern: ftn-vulnerabilities-v*
+    entities: [cpe, cve, firmware, chipset, baseband]
+  security:
+    pattern: ftn-security-v*
+    entities: [health-event, sensor, node, service]
+  osint:
+    pattern: ftn-osint-v*
+    entities: [ip, asn, domain, whois, rdap, route, certificate]
+  censorship:
+    pattern: ftn-censorship-v*
+    entities: [domain, ip, dns-record, route, health-event]
+
+common_mapping:
+  fields:
+    observation_id: keyword
+    timestamp: date
+    source: keyword
+    entity_type: keyword
+    entity_id: keyword
+    confidence: float
+    country: keyword
+    region: keyword
+    city: keyword
+    provider: keyword
+    asn: long
+    prefix: ip_range
+    ip: ip
+    domain: keyword
+    nameserver: keyword
+    cve: keyword
+    cpe: keyword
+    severity: keyword
+    status: keyword
+    latency_ms: float
+  dynamic: strict
+
+lifecycle:
+  rollover: true
+  retention_policy: external
+  snapshots: kopia
+  schema_changes: versioned
+
+security:
+  rbac: true
+  tls: true
+  raw_packets: false
+  raw_payloads: false
+  credentials: false
+  secrets: false
+  personal_tracking: false
