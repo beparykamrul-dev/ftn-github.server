@@ -1,0 +1,111 @@
+version: 1
+platform: FTN
+name: android-family-guard
+
+# Android client for FTN DNS policy, Family Guard and network health.
+# The app enforces explicit account/device policies; it does not perform hidden surveillance.
+
+app:
+  package_ref: runtime
+  min_android_api: runtime
+  modes:
+    - user
+    - family-guard
+    - admin
+  offline_cache: true
+  local_first: true
+
+account:
+  authentication: control-plane
+  device_registration: true
+  device_id: pseudonymous
+  policy_sync: websocket-and-api
+  session_tokens: external-secure-storage
+
+network:
+  wifi: true
+  mobile_data: true
+  ipv4: true
+  ipv6: true
+  dual_stack: true
+  dns_status: true
+  resolver_selection: true
+  local_dns_filter: true
+  android_local_vpn:
+    enabled: true
+    purpose: dns-policy-and-filtering
+    inspect_payloads: false
+  captive_portal_detection: supported
+
+family_guard:
+  profiles: [child, teen, family, custom]
+  controls:
+    category_filter: true
+    domain_allowlist: true
+    domain_blocklist: true
+    ip_allowlist: true
+    ip_blocklist: true
+    safe_search: true
+    malicious_domain_protection: true
+    schedule: true
+    bedtime: true
+    device_group: true
+  policy_source: FTN-control-plane
+  local_emergency_policy: true
+  audit: true
+
+status:
+  dashboard:
+    - dns_connected
+    - resolver
+    - policy_version
+    - blocked_count
+    - allowed_count
+    - dns_latency_ms
+    - last_sync
+    - network_type
+    - ipv4_state
+    - ipv6_state
+  notifications:
+    policy_changed: true
+    dns_unhealthy: true
+    filtering_unavailable: true
+    sync_failed: true
+
+api:
+  base_url: runtime
+  endpoints:
+    - device_register
+    - policy_read
+    - policy_sync
+    - dns_status
+    - filter_status
+    - aggregated_usage
+    - health
+  websocket:
+    enabled: true
+    reconnect: true
+    resume_cursor: true
+
+privacy:
+  raw_browsing_history: false
+  raw_dns_export: false
+  payload_collection: false
+  credential_collection: false
+  hidden_tracking: false
+  analytics: aggregated-only
+
+security:
+  certificate_validation: required
+  secrets_in_app_config: false
+  tokens_in_git: false
+  remote_policy_mutations: audited
+  admin_actions: authenticated-and-audited
+
+observability:
+  local_metrics: true
+  ram_buffer: true
+  control_plane: true
+  github_snapshot: sanitized-state-only
+  opensearch: true
+  postgresql: true
