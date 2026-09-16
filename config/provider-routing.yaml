@@ -1,0 +1,167 @@
+version: 1
+platform: FTN
+name: provider-routing
+
+# Normalized routing policy. Live endpoints, credentials, prefixes and prices
+# remain runtime data; this file defines policy and provider capabilities.
+
+engine:
+  enabled: true
+  decision_order: [health, latency, geo, capacity, provider_policy]
+  automatic_failover: true
+  automatic_recovery: true
+  hysteresis_seconds: 30
+  minimum_healthy_origins: 1
+
+providers:
+  cloudflare:
+    enabled: true
+    roles: [dns, ddns, edge, tunnel, certificate, health]
+    routing: [health, latency, geo, failover]
+    preferred_for: [dns, ddns, edge]
+    fallback_priority: 1
+  dnspod:
+    enabled: true
+    roles: [dns, ddns, dns01, certificate, health]
+    routing: [health, latency, geo, failover]
+    preferred_for: [dns, ddns, dns01]
+    fallback_priority: 2
+  akamai:
+    enabled: true
+    roles: [dns, edge, health]
+    routing: [health, latency, geo, failover]
+    preferred_for: [global-edge, dns]
+    fallback_priority: 3
+  fastly:
+    enabled: true
+    roles: [edge, certificate, health]
+    routing: [health, latency, geo, failover]
+    preferred_for: [edge]
+    fallback_priority: 4
+  powerdns-enterprise:
+    enabled: true
+    roles: [authoritative-dns, dnssec, ddns]
+    routing: [health, latency]
+    preferred_for: [authoritative]
+  technitium-dns-enterprise:
+    enabled: true
+    roles: [authoritative-dns, recursive-dns, dnssec, ddns]
+    routing: [health, latency]
+    preferred_for: [dns, recursive]
+  coredns:
+    enabled: true
+    roles: [authoritative-dns, service-discovery]
+    routing: [health, latency]
+    preferred_for: [service-discovery]
+  unbound:
+    enabled: true
+    roles: [recursive-dns]
+    routing: [health, latency]
+    preferred_for: [recursive]
+  hickory-dns:
+    enabled: true
+    roles: [recursive-dns]
+    routing: [health, latency]
+    preferred_for: [recursive]
+  duckdns:
+    enabled: true
+    roles: [ddns]
+    routing: [health, failover]
+    preferred_for: [emergency-ddns]
+  porkbun:
+    enabled: true
+    roles: [dns, ddns, dns01]
+    routing: [health, latency, failover]
+    preferred_for: [dns, ddns]
+
+selection:
+  health:
+    required: true
+    exclude_unhealthy: true
+    checks: [dns, tcp, http, tls, api, resolver, route]
+  latency:
+    enabled: true
+    inputs: [dns_rtt, tcp_rtt, quic_rtt, http_rtt]
+    minimum_samples: 3
+  geo:
+    enabled: true
+    dimensions: [country, region, city, timezone, colo, asn]
+  capacity:
+    enabled: true
+    inputs: [node_load, connection_count, error_rate]
+  policy:
+    stable_provider_preference: true
+    avoid_flapping: true
+
+modes:
+  dns:
+    primary: [powerdns-enterprise, technitium-dns-enterprise, coredns]
+    managed_fallback: [cloudflare, dnspod, akamai, porkbun]
+  recursive:
+    primary: [unbound, hickory-dns, technitium-dns-enterprise]
+    fallback: [coredns]
+  ddns:
+    primary: [cloudflare]
+    fallback: [dnspod, duckdns, porkbun]
+  edge:
+    primary: [cloudflare, akamai, fastly]
+    selection: [health, latency, geo, capacity]
+  certificate:
+    primary: [cloudflare, dnspod]
+    fallback: [porkbun]
+    challenge: dns01
+  anycast:
+    origin_selection: [health, latency, geo]
+    provider_policy: runtime
+
+failover:
+  trigger:
+    consecutive_failures: 3
+    provider_timeout: true
+    route_health_failure: true
+  action:
+    exclude_failed_provider: true
+    select_next_healthy: true
+    preserve_dns_state: true
+    preserve_ttl: true
+  recovery:
+    healthy_checks_required: 2
+    restore_gradually: true
+  safety:
+    never_delete_on_provider_error: true
+    authorized_prefixes_only: true
+    destructive_changes_disabled: true
+
+geo_latency:
+  global:
+    enabled: true
+    route_by: [health, latency, geo]
+  regional:
+    enabled: true
+  local:
+    enabled: true
+  tie_breaker: provider_policy
+
+provider_health:
+  interval_seconds: 15
+  timeout_seconds: 5
+  api_and_dns_checks: true
+  record_last_good_state: true
+  alert_source: config/intelligence-alerting.yaml
+
+observability:
+  emit: [selected_provider, selected_node, reason_code, health_state, latency_ms, failover_state]
+  websocket: true
+  opensearch: true
+  postgresql: true
+  ram_buffer: true
+  github: sanitized-policy-and-state-snapshots
+
+security:
+  credentials_external: true
+  secrets_external: true
+  real_endpoints_external: true
+  raw_packets: false
+  raw_payloads: false
+  private_personal_data: false
+  unauthorized_targeting: false
