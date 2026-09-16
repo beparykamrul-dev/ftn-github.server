@@ -1,0 +1,10 @@
+[Unit]
+Description=FTN Git and Control Plane Health Check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=-/etc/ftn/github-sync.env
+ExecStart=/opt/ftn-github.server/scripts/ftn-git-health.sh
