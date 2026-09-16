@@ -1,0 +1,79 @@
+version: 1
+platform: FTN
+name: dns-provider-adapters
+
+# Provider adapters expose normalized capabilities to the FTN control plane.
+# Provider credentials and endpoints are runtime secrets.
+
+providers:
+  powerdns-enterprise:
+    class: authoritative
+    api: true
+    dnssec: true
+    ddns: true
+    dns01: true
+  technitium-dns-enterprise:
+    class: authoritative-and-recursive
+    api: true
+    dnssec: true
+    ddns: true
+    dns01: true
+  coredns:
+    class: authoritative-and-service-discovery
+    api: runtime
+    dnssec: runtime
+    ddns: runtime
+    dns01: runtime
+  cloudflare:
+    class: managed-dns
+    api: true
+    dnssec: true
+    ddns: true
+    dns01: true
+    health: true
+  dnspod:
+    class: managed-dns
+    api: true
+    dnssec: true
+    ddns: true
+    dns01: true
+  akamai:
+    class: managed-dns
+    api: true
+    dnssec: true
+    ddns: runtime
+    dns01: true
+  duckdns:
+    class: ddns
+    api: true
+    dnssec: false
+    ddns: true
+  porkbun:
+    class: managed-dns
+    api: true
+    dnssec: true
+    ddns: true
+    dns01: true
+
+adapter_contract:
+  operations:
+    - zone_list
+    - zone_read
+    - record_list
+    - record_upsert
+    - record_delete
+    - dnssec_status
+    - health_check
+  safeguards:
+    allowlist: true
+    dry_run: true
+    audit: true
+    idempotent_updates: true
+    secrets_external: true
+
+control_plane:
+  normalization: true
+  provider_fallback: true
+  health_gated_changes: true
+  database: postgresql
+  cache: local
