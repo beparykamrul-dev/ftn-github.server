@@ -1,0 +1,81 @@
+version: 1
+platform: FTN
+name: dns-runtime-plane
+
+# Runtime orchestration registry. Exact binaries, ports, addresses and
+# credentials are discovered/configured per target node; nothing sensitive is stored here.
+
+pipeline:
+  ingress: dnsdist
+  authoritative:
+    - powerdns-enterprise
+    - technitium-dns-enterprise
+    - coredns
+  recursive:
+    - unbound
+    - hickory-dns
+  provider_dns:
+    - cloudflare
+    - dnspod
+    - akamai
+  ddns:
+    - cloudflare
+    - dnspod
+    - duckdns
+    - porkbun
+  routing:
+    - anycast
+    - geo
+    - latency
+    - health
+    - failover
+
+portal:
+  control_plane: aspnet-core
+  backend: go
+  database: postgresql
+  pooler: pgbouncer
+  capabilities:
+    - zones
+    - records
+    - dnssec
+    - ddns
+    - anycast
+    - provider-health
+    - geo-flow
+    - latency-flow
+    - certificate-state
+    - audit
+
+certificates:
+  acme: lets-encrypt
+  challenge: dns-01
+  providers:
+    - dnspod
+    - cloudflare
+  renewal: automatic
+
+edge:
+  caddy_dns: true
+  cloudflare: true
+  fastly: true
+  netflix: true
+  netflix_proxy: true
+
+smart_layer:
+  smart_dns: true
+  ad_blocking: true
+  ai_traffic_management: true
+  shielding: true
+  anomaly_detection: true
+  numa_aware_policy: true
+
+observability:
+  local_ram_buffer: true
+  health_events: true
+  metrics: true
+  github_snapshots: true
+  raw_packets: false
+  raw_payloads: false
+  secrets: false
+  credentials: false
