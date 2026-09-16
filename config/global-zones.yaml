@@ -1,0 +1,55 @@
+version: 1
+platform: FTN
+name: global-zone-registry
+
+# Logical topology only. Real addresses, prefixes, ASNs and credentials stay in runtime state.
+
+defaults:
+  enabled: true
+  dnssec: true
+  health_gated: true
+  anycast_eligible: true
+  geo_aware: true
+  latency_aware: true
+
+zones:
+  - id: bd-chittagong
+    scope: regional
+    role: origin-and-edge
+    nodes_from: config/nodes.yaml
+  - id: global-edge
+    scope: global
+    role: edge
+    nodes_from: config/nodes.yaml
+
+node_capabilities:
+  control_plane: [core-01]
+  dns: [dns-01]
+  monitoring: [monitor-01]
+  realtime: [realtime-01]
+  frontend: [edge-01]
+  anycast_candidates: [core-01, dns-01, edge-01]
+
+provider_edges:
+  - cloudflare
+  - dnspod
+  - akamai
+  - fastly
+
+selection:
+  order: [health, latency, geo, provider_policy]
+  failover: automatic
+  require_healthy_origin: true
+
+state:
+  source_of_truth: control-plane
+  database: postgresql
+  cache: local
+  github: sanitized-topology-snapshots
+
+security:
+  real_ips_in_git: false
+  prefixes_in_git: false
+  bgp_credentials_in_git: false
+  provider_tokens_in_git: false
+  private_keys_in_git: false
