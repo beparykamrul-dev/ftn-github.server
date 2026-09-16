@@ -14,19 +14,14 @@ sealed interface RealtimeEvent {
     companion object {
         fun parse(text: String): RealtimeEvent {
             val root = JSONObject(text)
-            return when (val type = root.optString("type")) {
-                "policy.updated" -> PolicyUpdated(
-                    version = root.optLong("version", 0L),
-                    policyJson = root.optJSONObject("policy")?.toString()
-                        ?: root.optString("policy_json", "")
-                )
-                "policy.revoked" -> PolicyRevoked(root.optLong("version", 0L))
-                "device.command" -> DeviceCommand(
-                    command = root.optString("command"),
-                    requestId = root.optString("request_id").takeIf { it.isNotBlank() }
-                )
-                "heartbeat" -> Heartbeat(root.optLong("timestamp", System.currentTimeMillis()))
-                "usage.summary" -> UsageSummary(root.optJSONObject("summary")?.toString() ?: "{}")
+            val type = root.optString("type").ifBlank { root.optString("event") }
+            val payload = root.optJSONObject("payload") ?: root
+            return when (type) {
+                "policy.updated" -> PolicyUpdated(payload.optLong("version", root.optLong("version", 0L)), payload.optJSONObject("policy")?.toString() ?: payload.optString("policy_json", ""))
+                "policy.revoked" -> PolicyRevoked(payload.optLong("version", root.optLong("version", 0L)))
+                "device.command" -> DeviceCommand(payload.optString("command"), payload.optString("request_id").takeIf { it.isNotBlank() })
+                "heartbeat" -> Heartbeat(payload.optLong("timestamp", root.optLong("timestamp", System.currentTimeMillis())))
+                "usage.summary" -> UsageSummary(payload.optJSONObject("summary")?.toString() ?: payload.toString())
                 else -> Unknown(type)
             }
         }
