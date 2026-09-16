@@ -1,0 +1,45 @@
+version: 1
+purpose: map-github-repositories-to-existing-ftn-runtimes
+source_registry: config/github-registry.yaml
+
+bindings:
+  - repository: beparykamrul-dev/ftn-github.server
+    service: ftn-github-server
+    node: control-plane
+    source_path: /opt/ftn-github.server
+    runtime: repository-management
+    build:
+      type: none
+    health:
+      type: file
+      path: /opt/ftn-github.server/README.md
+    deploy:
+      mode: controlled
+      auto: false
+
+  - repository: beparykamrul-dev/FTN_ser_AI
+    service: ftn-ser-ai
+    node: ai-01
+    source_path: /opt/FTN_ser_AI
+    runtime: systemd
+    unit: ftn-ser-ai.service
+    build:
+      type: existing-runtime
+    health:
+      type: http
+      url: http://127.0.0.1:8080/healthz
+    deploy:
+      mode: controlled
+      auto: false
+
+policy:
+  require_registered_repository: true
+  require_registered_node: true
+  require_registered_service: true
+  allow_arbitrary_shell: false
+  allow_auto_deploy: false
+  allow_rollback: true
+  preserve_existing_runtime: true
+  secrets_from_runtime_only: true
+  raw_traffic_export: false
+  telemetry_payload_export: false
