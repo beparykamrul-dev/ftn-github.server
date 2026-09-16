@@ -1,0 +1,27 @@
+version: 1
+registry: ftn-github.server
+mode: connected-github
+source_of_truth: github
+owner: beparykamrul-dev
+sync:
+  enabled: true
+  endpoint: https://api.github.com/user/repos
+  affiliation: owner
+  visibility: all
+  include_archived: true
+  paginate: true
+  per_page: 100
+  secret_source: runtime:GITHUB_TOKEN
+  persist_tokens: false
+  persist_webhooks: false
+repositories: []
+policy:
+  auto_import: metadata-only
+  auto_deploy: false
+  default_branch_from_github: true
+  preserve_existing_runtime: true
+  no_secret_export: true
+  no_raw_traffic_export: true
+  no_private_runtime_data_export: true
+  provider_sources: reference-only
+  deploy_requires_registered_node: true
