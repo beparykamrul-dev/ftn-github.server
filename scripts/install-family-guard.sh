@@ -7,6 +7,7 @@ BRANCH="${FTN_FAMILY_GUARD_BRANCH:-main}"
 BIN="$ROOT/bin/ftn-family-guard"
 ENV_DIR="/etc/ftn"
 ENV_FILE="$ENV_DIR/family-guard.env"
+GIT_ENV_FILE="$ENV_DIR/github-sync.env"
 SERVICE="ftn-family-guard"
 
 command -v git >/dev/null || { echo "git is required"; exit 1; }
@@ -41,6 +42,16 @@ EOF
   chmod 600 "$ENV_FILE"
 fi
 
+if [ ! -f "$GIT_ENV_FILE" ]; then
+  cat > "$GIT_ENV_FILE" <<'EOF'
+GITHUB_TOKEN=
+FTN_GIT_SOURCE_SYNC=false
+FTN_GITHUB_ROOT=/opt/ftn-github.server
+FTN_GIT_REPOS_ROOT=/opt/ftn-git/repos
+EOF
+  chmod 600 "$GIT_ENV_FILE"
+fi
+
 if command -v systemctl >/dev/null 2>&1; then
   if [ -f "$ROOT/systemd/ftn-family-guard.service.example" ]; then
     install -m 0644 "$ROOT/systemd/ftn-family-guard.service.example" /etc/systemd/system/ftn-family-guard.service
@@ -56,3 +67,4 @@ fi
 
 echo "Family Guard binary: $BIN"
 echo "Git registry: $ROOT/config/github-repositories.generated.yaml"
+echo "Git runtime env: $GIT_ENV_FILE"
