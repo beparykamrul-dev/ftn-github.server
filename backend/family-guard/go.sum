@@ -1,4 +1,4 @@
-github.com/jackc/pgx/v5 v5.7.2 h1:0k1XjG6o9n4w7YQ6q3f4XQhYx6Q8l7r3m8p2x4w1Z5E=
-github.com/jackc/pgx/v5 v5.7.2/go.mod h1:Q7y3b2X9p4M1c6V8n0L5k2J4r7T9s3W6x8Z1a5B0C4=
-nhooyr.io/websocket v1.8.17 h1:REPLACE_WITH_GO_SUM_CHECKSUM
-nhooyr.io/websocket v1.8.17/go.mod h1:REPLACE_WITH_GO_MOD_CHECKSUM
+github.com/jackc/pgx/v5 v5.7.2 h1:mLoDLV6sonKlvjIEsV56SkWNCnuNv531l94GaIzO+XI=
+github.com/jackc/pgx/v5 v5.7.2/go.mod h1:ncY89UGWxg82EykZUwSpUKEfccBGGYq1xjrOpsbsfGQ=
+nhooyr.io/websocket v1.8.17 h1:KEVeLJkUywCKVsnLIDlD/5gtayKp8VoCkksHCGGfT9Y=
+nhooyr.io/websocket v1.8.17/go.mod h1:rN9OFWIUwuxg4fR5tELlYC04bXYowCP9GX47ivo2l+c=
