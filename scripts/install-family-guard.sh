@@ -12,16 +12,20 @@ SERVICE="ftn-family-guard"
 command -v git >/dev/null || { echo "git is required"; exit 1; }
 command -v go >/dev/null || { echo "Go 1.23+ is required"; exit 1; }
 
-mkdir -p "$ROOT" "$ROOT/bin" "$ENV_DIR"
+mkdir -p "$ENV_DIR"
 if [ -d "$ROOT/.git" ]; then
   git -C "$ROOT" fetch origin "$BRANCH"
   git -C "$ROOT" checkout "$BRANCH"
   git -C "$ROOT" pull --ff-only origin "$BRANCH"
+elif [ -e "$ROOT" ]; then
+  echo "Refusing to overwrite existing non-Git path: $ROOT" >&2
+  exit 1
 else
-  rm -rf "$ROOT"
+  mkdir -p "$(dirname "$ROOT")"
   git clone --branch "$BRANCH" --depth 1 "$REPO" "$ROOT"
 fi
 
+mkdir -p "$ROOT/bin"
 cd "$ROOT/backend/family-guard"
 go mod download
 go test ./...
