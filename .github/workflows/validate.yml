@@ -27,7 +27,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-          cache-dependency-path: backend/family-guard/go.sum
       - name: Test Family Guard
         working-directory: backend/family-guard
         run: go test ./...
