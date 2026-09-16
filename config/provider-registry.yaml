@@ -1,0 +1,137 @@
+version: 1
+platform: FTN
+name: provider-registry
+
+# Unified provider catalog for the FTN control plane. Runtime credentials,
+# private endpoints and account identifiers remain outside Git.
+
+registry:
+  normalization: true
+  source_of_truth: control-plane
+  capability_discovery: true
+  health_gated: true
+  adapter_contract: config/provider-adapter-contract.yaml
+  routing_policy: config/provider-routing.yaml
+
+providers:
+  cloudflare:
+    class: managed-edge-platform
+    capabilities: [dns, dnssec, ddns, dns01, edge, cdn, tunnel, health, certificate]
+    adapters: [dns, ddns, health, certificate, edge]
+    monitoring: [api, dns, http, tls, latency, reachability]
+    state: [provider-health, zone-state, record-state, certificate-state]
+  dnspod:
+    class: managed-dns
+    capabilities: [dns, dnssec, ddns, dns01, certificate, health]
+    adapters: [dns, ddns, dns01, health]
+    monitoring: [api, dns, tls, latency]
+    state: [provider-health, zone-state, record-state]
+  akamai:
+    class: managed-edge-platform
+    capabilities: [dns, dnssec, edge, health, certificate]
+    adapters: [dns, health, edge]
+    monitoring: [api, dns, http, tls, latency, reachability]
+    state: [provider-health, zone-state, edge-state]
+  fastly:
+    class: edge-delivery
+    capabilities: [edge, cdn, certificate, health]
+    adapters: [edge, certificate, health]
+    monitoring: [api, http, tls, latency, reachability]
+    state: [provider-health, edge-state]
+  powerdns-enterprise:
+    class: authoritative-dns
+    capabilities: [authoritative-dns, dnssec, ddns, api, health]
+    adapters: [dns, dnssec, ddns, health]
+    monitoring: [udp53, tcp53, dnssec, api, latency]
+    state: [zone-state, record-state, dnssec-state]
+  technitium-dns-enterprise:
+    class: dns-platform
+    capabilities: [authoritative-dns, recursive-dns, dnssec, ddns, api, health]
+    adapters: [dns, dnssec, ddns, health]
+    monitoring: [udp53, tcp53, dnssec, api, latency]
+    state: [zone-state, record-state, resolver-state]
+  coredns:
+    class: dns-service
+    capabilities: [authoritative-dns, service-discovery, health]
+    adapters: [dns, health]
+    monitoring: [udp53, tcp53, latency]
+    state: [resolver-state, service-state]
+  unbound:
+    class: recursive-dns
+    capabilities: [recursive-dns, dnssec, health]
+    adapters: [resolver, health]
+    monitoring: [udp53, tcp53, dnssec, latency]
+    state: [resolver-state]
+  hickory-dns:
+    class: recursive-dns
+    capabilities: [recursive-dns, dnssec, health]
+    adapters: [resolver, health]
+    monitoring: [udp53, tcp53, dnssec, latency]
+    state: [resolver-state]
+  duckdns:
+    class: ddns
+    capabilities: [ddns]
+    adapters: [ddns, health]
+    monitoring: [api, dns, reachability]
+    state: [record-state, provider-health]
+  porkbun:
+    class: registrar-dns
+    capabilities: [dns, dnssec, ddns, dns01, certificate]
+    adapters: [dns, ddns, dns01, health]
+    monitoring: [api, dns, tls, latency]
+    state: [zone-state, record-state, provider-health]
+
+capability_matrix:
+  dns_authoritative: [cloudflare, dnspod, akamai, powerdns-enterprise, technitium-dns-enterprise, coredns, porkbun]
+  dns_recursive: [technitium-dns-enterprise, unbound, hickory-dns]
+  dnssec: [cloudflare, dnspod, akamai, powerdns-enterprise, technitium-dns-enterprise, unbound, hickory-dns, porkbun]
+  ddns: [cloudflare, dnspod, powerdns-enterprise, technitium-dns-enterprise, duckdns, porkbun]
+  dns01: [cloudflare, dnspod, powerdns-enterprise, technitium-dns-enterprise, porkbun]
+  edge: [cloudflare, akamai, fastly]
+  certificate: [cloudflare, dnspod, akamai, fastly, porkbun]
+  health_api: [cloudflare, dnspod, akamai, fastly, powerdns-enterprise, technitium-dns-enterprise, duckdns, porkbun]
+
+adapter_selection:
+  dns: config/provider-adapter-contract.yaml
+  routing: config/provider-routing.yaml
+  alerts: config/intelligence-alerting.yaml
+  intelligence: config/intelligence-api.yaml
+
+provider_state:
+  normalized_fields:
+    - provider_id
+    - provider_class
+    - enabled
+    - capability_set
+    - health_state
+    - latency_ms
+    - reachability
+    - last_success_at
+    - last_change_at
+  transitions: [healthy, degraded, unhealthy, unknown, disabled]
+
+failover:
+  health_required: true
+  automatic: true
+  policy: config/provider-routing.yaml
+  never_delete_on_provider_error: true
+  preserve_state: true
+  audit: true
+
+observability:
+  opensearch: true
+  postgresql: true
+  ram_buffer: true
+  websocket: true
+  github: sanitized-provider-state-snapshots
+  metrics_only_export: true
+
+security:
+  credentials_external: true
+  secrets_external: true
+  provider_tokens_in_git: false
+  raw_packets: false
+  raw_payloads: false
+  private_personal_data: false
+  unauthorized_targeting: false
+  destructive_changes: false
