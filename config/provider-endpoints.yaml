@@ -1,0 +1,141 @@
+version: 1
+platform: FTN
+name: provider-endpoints
+
+# Runtime endpoint registry. Actual URLs, IPs, ports, account IDs and secrets
+# are injected by the deployment environment and are never stored here.
+
+runtime:
+  endpoint_source: external-config
+  secret_source: external-secret-store
+  discovery: provider-registry
+  health_policy: provider-routing
+  timeout_seconds: 10
+  retry_attempts: 3
+
+providers:
+  cloudflare:
+    enabled: true
+    services:
+      dns: {protocol: https, endpoint_ref: runtime}
+      ddns: {protocol: https, endpoint_ref: runtime}
+      edge: {protocol: https, endpoint_ref: runtime}
+      tunnel: {protocol: https, endpoint_ref: runtime}
+      certificate: {protocol: https, endpoint_ref: runtime}
+      health: {protocol: https, endpoint_ref: runtime}
+  dnspod:
+    enabled: true
+    services:
+      dns: {protocol: https, endpoint_ref: runtime}
+      ddns: {protocol: https, endpoint_ref: runtime}
+      dns01: {protocol: https, endpoint_ref: runtime}
+      health: {protocol: https, endpoint_ref: runtime}
+  akamai:
+    enabled: true
+    services:
+      dns: {protocol: https, endpoint_ref: runtime}
+      edge: {protocol: https, endpoint_ref: runtime}
+      health: {protocol: https, endpoint_ref: runtime}
+  fastly:
+    enabled: true
+    services:
+      edge: {protocol: https, endpoint_ref: runtime}
+      certificate: {protocol: https, endpoint_ref: runtime}
+      health: {protocol: https, endpoint_ref: runtime}
+  powerdns-enterprise:
+    enabled: true
+    services:
+      api: {protocol: https, endpoint_ref: runtime}
+      dns: {protocol: udp, port_ref: runtime}
+      dns_tcp: {protocol: tcp, port_ref: runtime}
+  technitium-dns-enterprise:
+    enabled: true
+    services:
+      api: {protocol: https, endpoint_ref: runtime}
+      dns: {protocol: udp, port_ref: runtime}
+      dns_tcp: {protocol: tcp, port_ref: runtime}
+  coredns:
+    enabled: true
+    services:
+      dns: {protocol: udp, port_ref: runtime}
+      dns_tcp: {protocol: tcp, port_ref: runtime}
+      health: {protocol: http, endpoint_ref: runtime}
+  unbound:
+    enabled: true
+    services:
+      resolver: {protocol: udp, port_ref: runtime}
+      resolver_tcp: {protocol: tcp, port_ref: runtime}
+      health: {protocol: http, endpoint_ref: runtime}
+  hickory-dns:
+    enabled: true
+    services:
+      resolver: {protocol: udp, port_ref: runtime}
+      resolver_tcp: {protocol: tcp, port_ref: runtime}
+      health: {protocol: http, endpoint_ref: runtime}
+  duckdns:
+    enabled: true
+    services:
+      ddns: {protocol: https, endpoint_ref: runtime}
+      health: {protocol: https, endpoint_ref: runtime}
+  porkbun:
+    enabled: true
+    services:
+      dns: {protocol: https, endpoint_ref: runtime}
+      ddns: {protocol: https, endpoint_ref: runtime}
+      dns01: {protocol: https, endpoint_ref: runtime}
+      health: {protocol: https, endpoint_ref: runtime}
+
+service_contract:
+  request:
+    request_id: required
+    timeout: required
+    idempotency_key: mutations_only
+  response:
+    provider: required
+    service: required
+    status: required
+    request_id: required
+    timestamp: required
+  statuses: [ok, degraded, failed, unsupported]
+
+health:
+  checks:
+    api: true
+    dns: true
+    tcp: true
+    tls: true
+    http: true
+    latency: true
+    reachability: true
+  interval_seconds: 15
+  failure_threshold: 3
+  recovery_threshold: 2
+
+failover:
+  policy: config/provider-routing.yaml
+  health_gated: true
+  automatic: true
+  preserve_state: true
+  never_delete_on_provider_error: true
+
+observability:
+  provider: true
+  service: true
+  health: true
+  latency: true
+  status_changes: true
+  opensearch: true
+  postgresql: true
+  websocket: true
+  ram_buffer: true
+  github: sanitized-state-only
+
+security:
+  endpoint_values_in_git: false
+  ip_addresses_in_git: false
+  account_ids_in_git: false
+  tokens_in_git: false
+  passwords_in_git: false
+  private_keys_in_git: false
+  raw_requests: false
+  raw_payloads: false
