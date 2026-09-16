@@ -1,0 +1,103 @@
+version: 1
+platform: FTN
+name: provider-discovery
+
+# Discovers supported provider/service capabilities at runtime and registers
+# normalized state with the FTN Control Plane. Discovery never stores secrets
+# or raw provider responses in GitHub.
+
+discovery:
+  enabled: true
+  mode: capability-and-health
+  interval_seconds: 60
+  timeout_seconds: 10
+  retry_attempts: 3
+  concurrent_probes: 4
+  cache_ttl_seconds: 300
+
+sources:
+  provider_registry: config/provider-registry.yaml
+  endpoints: config/provider-endpoints.yaml
+  health_matrix: config/provider-health-matrix.yaml
+  sync: config/provider-sync.yaml
+  control_plane: config/control-plane-api.yaml
+
+methods:
+  - configured-provider
+  - runtime-endpoint
+  - api-capability
+  - dns-capability
+  - tls-capability
+  - health-probe
+  - service-discovery
+
+providers:
+  cloudflare: [api, dns, ddns, edge, tunnel, certificate, health]
+  dnspod: [api, dns, ddns, dns01, health]
+  akamai: [api, dns, edge, health]
+  fastly: [api, edge, certificate, health]
+  powerdns-enterprise: [api, dns, dnssec, ddns, health]
+  technitium-dns-enterprise: [api, dns, recursive, dnssec, ddns, health]
+  coredns: [dns, service-discovery, health]
+  unbound: [resolver, health]
+  hickory-dns: [resolver, health]
+  duckdns: [api, ddns, health]
+  porkbun: [api, dns, ddns, dns01, health]
+
+normalization:
+  provider_id: required
+  service_id: required
+  endpoint_id: runtime
+  region: runtime
+  environment: runtime
+  version: runtime
+  capabilities: normalized
+  health_state: provider-health-matrix
+  last_seen: required
+
+registration:
+  destination: ftn-control-plane
+  operation: upsert-discovered-service
+  idempotent: true
+  allowlist_only: true
+  require_health: false
+  unknown_provider: quarantine
+  unsupported_service: record-only
+  drift_event: true
+
+lifecycle:
+  new_service: discovered
+  healthy_service: active
+  degraded_service: degraded
+  failed_service: failed
+  missing_after_grace: stale
+  removed_after_expiry: retired
+  grace_period_seconds: 180
+  expiry_seconds: 900
+
+health:
+  after_discovery: true
+  probe_profile: config/provider-health-matrix.yaml
+  update_matrix: true
+  update_routing: health-gated
+  automatic_failover: true
+
+observability:
+  events: config/health-events.yaml
+  alerts: config/intelligence-alerting.yaml
+  opensearch: true
+  postgresql: true
+  websocket: true
+  ram_buffer: true
+  github_snapshot: sanitized-discovery-state
+
+security:
+  credentials_source: external-secret-store
+  secrets_source: external-secret-store
+  credentials_in_git: false
+  secrets_in_git: false
+  raw_api_responses: false
+  raw_dns_queries: false
+  raw_packets: false
+  private_runtime_data: false
+  unauthorized_auto_registration: false
