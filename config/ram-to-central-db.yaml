@@ -1,0 +1,82 @@
+version: 1
+platform: FTN
+name: ram-to-central-db
+
+# Local RAM is the fast ingestion buffer. PostgreSQL is the central durable
+# source of truth. GitHub receives sanitized snapshots, not the live stream.
+
+pipeline:
+  mode: local-buffer-to-central-db
+  source: node-local-ram
+  destination: central-postgresql
+  pooler: pgbouncer
+  batch_size: 500
+  flush_interval_seconds: 5
+  max_buffer_events: 10000
+  compression: enabled
+  backpressure: true
+  retry:
+    enabled: true
+    max_attempts: 5
+    exponential_backoff: true
+
+write_policy:
+  idempotent: true
+  transaction_batch: true
+  ordered_events: true
+  deduplicate: true
+  acknowledge_after_commit: true
+  failed_batches: local-durable-queue
+
+central_database:
+  role: source-of-truth
+  engine: postgresql
+  pooler: pgbouncer
+  partitions:
+    health_events: time
+    telemetry_events: time
+    audit_events: time
+  retention_policy: data-governance
+  backups: runtime-policy
+
+ram_buffer:
+  role: transient-ingestion
+  persist_before_ack: true
+  never_store_secrets: true
+  never_store_credentials: true
+  raw_packets: false
+  raw_payloads: false
+  raw_dns_queries: false
+
+sources:
+  - health
+  - dns-metrics
+  - ddns-state
+  - anycast-state
+  - bgp-state
+  - provider-health
+  - geo-latency-metrics
+  - node-metrics
+  - service-metrics
+  - certificate-state
+  - audit-events
+
+outputs:
+  postgresql: durable-normalized-data
+  github: sanitized-periodic-snapshot
+  monitoring: aggregated-metrics
+
+failure_recovery:
+  database_unavailable: retain-local-queue
+  network_unavailable: retain-local-queue
+  provider_unavailable: do-not-drop-local-events
+  replay_after_recovery: true
+  duplicate_safe: true
+
+security:
+  tls_to_database: required
+  database_credentials: external-secret-store
+  encryption_at_rest: runtime-policy
+  secrets_in_git: false
+  credentials_in_git: false
+  destructive_migration: false
