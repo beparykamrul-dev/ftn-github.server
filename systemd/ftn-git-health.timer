@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic FTN Git and Control Plane Health Check
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=ftn-git-health.service
+
+[Install]
+WantedBy=timers.target
