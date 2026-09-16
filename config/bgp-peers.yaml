@@ -1,0 +1,63 @@
+version: 1
+platform: FTN
+name: bgp-peer-control
+
+# BGP session model only. Real peer addresses, ASNs, passwords and prefixes are runtime inputs.
+
+sessions:
+  source: runtime
+  address_families: [ipv4, ipv6]
+  protocol: bgp
+  authentication: external
+  graceful_restart: true
+  multipath: true
+
+policy:
+  inbound:
+    rpki_validation: true
+    max_prefix: runtime
+    reject_invalid: true
+    reject_unexpected: true
+  outbound:
+    authorized_prefixes_only: true
+    max_prefix: runtime
+    reject_private_routes: true
+    next_hop_self: true
+
+path_selection:
+  order:
+    - health
+    - local_preference
+    - as_path
+    - origin
+    - med
+    - ecmp
+  geo_latency_policy: control-plane
+
+communities:
+  enabled: true
+  definitions_source: runtime
+  never_publish_credentials: true
+
+health:
+  interval_seconds: 15
+  session_state: monitor
+  route_health: monitor
+  withdraw_on_failure: true
+  restore_after_healthy_checks: true
+
+rpki:
+  enabled: true
+  validation: strict
+  cache_source: runtime
+
+telemetry:
+  metrics_only: true
+  fields: [session_state, prefixes, route_count, latency_ms, errors]
+  github_snapshot: sanitized
+
+security:
+  peer_passwords_in_git: false
+  private_keys_in_git: false
+  real_prefixes_in_git: false
+  unauthorized_advertisement: false
