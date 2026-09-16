@@ -18,7 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class FtnRealtimeClient(
     private val socketFactory: SocketFactory,
     private val scope: CoroutineScope,
-    private val baseUrl: String
+    private val baseUrl: String,
+    private val eventListener: ((String) -> Unit)? = null
 ) {
     interface Socket { fun connect(); fun close(); fun send(text:String) }
     interface SocketFactory { fun create(url:String, authorization:String, listener:Listener):Socket }
@@ -40,7 +41,7 @@ class FtnRealtimeClient(
         socket?.close()
         socket=socketFactory.create(buildUrl(deviceId),"Bearer $session",object:Listener{
             override fun onOpen(){attempt=0}
-            override fun onMessage(text:String){/* Routed by sync manager. */}
+            override fun onMessage(text:String){eventListener?.invoke(text)}
             override fun onFailure(error:Throwable){scheduleReconnect(deviceId,session)}
             override fun onClosed(){scheduleReconnect(deviceId,session)}
         })
