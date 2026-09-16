@@ -1,0 +1,331 @@
+version: 1
+platform: FTN
+name: provider-capability-matrix
+
+# Normalized provider/service capability matrix for DNS and network monitoring.
+# Runtime endpoints, credentials, real addresses and provider-specific secrets stay outside Git.
+
+matrix:
+  cloudflare:
+    dns: true
+    authoritative: true
+    recursive: false
+    dnssec: true
+    ddns: true
+    dns01: true
+    edge: true
+    tunnel: true
+    certificate: true
+    health_api: true
+  dnspod:
+    dns: true
+    authoritative: true
+    recursive: false
+    dnssec: true
+    ddns: true
+    dns01: true
+    edge: false
+    certificate: false
+    health_api: true
+  akamai:
+    dns: true
+    authoritative: true
+    recursive: false
+    dnssec: true
+    ddns: runtime
+    dns01: true
+    edge: true
+    certificate: runtime
+    health_api: true
+  fastly:
+    dns: false
+    authoritative: false
+    recursive: false
+    dnssec: false
+    ddns: false
+    dns01: false
+    edge: true
+    certificate: true
+    health_api: true
+  powerdns-enterprise:
+    dns: true
+    authoritative: true
+    recursive: runtime
+    dnssec: true
+    ddns: true
+    dns01: true
+    edge: false
+    certificate: false
+    health_api: true
+  technitium-dns-enterprise:
+    dns: true
+    authoritative: true
+    recursive: true
+    dnssec: true
+    ddns: true
+    dns01: true
+    edge: false
+    certificate: false
+    health_api: true
+  coredns:
+    dns: true
+    authoritative: true
+    recursive: runtime
+    dnssec: runtime
+    ddns: runtime
+    dns01: runtime
+    edge: false
+    certificate: false
+    health_api: true
+  unbound:
+    dns: true
+    authoritative: false
+    recursive: true
+    dnssec: true
+    ddns: false
+    dns01: false
+    edge: false
+    certificate: false
+    health_api: runtime
+  hickory-dns:
+    dns: true
+    authoritative: runtime
+    recursive: true
+    dnssec: runtime
+    ddns: runtime
+    dns01: runtime
+    edge: false
+    certificate: false
+    health_api: runtime
+  duckdns:
+    dns: false
+    authoritative: false
+    recursive: false
+    dnssec: false
+    ddns: true
+    dns01: false
+    edge: false
+    certificate: false
+    health_api: true
+  porkbun:
+    dns: true
+    authoritative: true
+    recursive: false
+    dnssec: true
+    ddns: true
+    dns01: true
+    edge: false
+    certificate: false
+    health_api: true
+
+monitoring:
+  probe_interval_seconds: 15
+  timeout_seconds: 5
+  failure_threshold: 3
+  recovery_threshold: 2
+  observation_window_seconds: 60
+
+  dns:
+    protocols: [udp, tcp, dot, doh, doq]
+    ports: [53, 853, 443]
+    query_types: [A, AAAA, NS, SOA, MX, TXT, CNAME, DNSKEY, DS, PTR]
+    checks:
+      - reachability
+      - response_code
+      - response_latency
+      - recursion_state
+      - authoritative_state
+      - delegation
+      - glue
+      - soa_serial
+      - ns_consistency
+      - dnssec_chain
+      - dnskey
+      - ds
+      - nsec_nsec3
+      - negative_answer
+      - ttl
+      - truncation
+      - tcp_fallback
+      - edns
+      - ecs_presence
+      - cookie_support
+      - qname_minimization
+      - cache_status
+      - stale_answer
+      - lame_delegation
+      - servfail_rate
+      - nxdomain_rate
+      - timeout_rate
+      - malformed_response
+
+  authoritative:
+    checks:
+      - parent_to_child_delegation
+      - ns_set_consistency
+      - primary_secondary_serial
+      - zone_transfer_state
+      - notify_state
+      - dnssec_signing_state
+      - dnssec_expiry
+      - soa_refresh
+      - soa_retry
+      - soa_expire
+      - record_presence
+      - record_drift
+      - unexpected_record_change
+
+  recursive:
+    checks:
+      - recursion_enabled
+      - cache_hit_ratio
+      - upstream_reachability
+      - upstream_latency
+      - validation_state
+      - serve_stale_state
+      - forwarding_state
+      - root_hints_state
+      - trust_anchor_state
+      - qps
+      - concurrent_queries
+      - memory_pressure
+      - socket_errors
+
+  dnssec:
+    checks:
+      - ds_match
+      - dnskey_match
+      - rrsig_validity
+      - rrsig_expiry
+      - algorithm_consistency
+      - key_rollover_state
+      - chain_of_trust
+      - bogus_response_rate
+      - validation_latency
+
+  ddns:
+    checks:
+      - current_address
+      - expected_address
+      - record_freshness
+      - provider_update_status
+      - update_latency
+      - update_error_rate
+      - ipv4
+      - ipv6
+      - dual_stack
+      - stale_record
+
+  network:
+    checks:
+      - ipv4_reachability
+      - ipv6_reachability
+      - tcp_connectivity
+      - tls_handshake
+      - route_latency
+      - packet_loss
+      - jitter
+      - path_change
+      - asn_change
+      - provider_change
+      - geo_change
+
+  certificates:
+    checks:
+      - certificate_expiry
+      - chain_validity
+      - hostname_match
+      - issuer
+      - signature_algorithm
+      - tls_version
+      - dns01_state
+      - acme_renewal_state
+
+  anycast:
+    checks:
+      - bgp_session_state
+      - prefix_visibility
+      - rpki_state
+      - route_count
+      - route_withdrawal
+      - origin_health
+      - regional_latency
+      - path_consistency
+
+  providers:
+    checks:
+      - api_reachability
+      - api_latency
+      - dns_reachability
+      - dns_correctness
+      - tls_validity
+      - service_capability
+      - provider_status
+      - synchronization_drift
+
+  infrastructure:
+    checks:
+      - cpu
+      - memory
+      - disk
+      - filesystem
+      - network_interface
+      - socket_count
+      - process_state
+      - service_state
+      - container_state
+      - systemd_state
+      - clock_sync
+      - kernel_health
+      - numa_locality
+
+telemetry:
+  local_first: true
+  ram_buffer: true
+  postgresql: true
+  opensearch: true
+  websocket: true
+  github_snapshot: sanitized-metrics-and-state
+  metrics:
+    - dns_qps
+    - dns_latency_ms
+    - dns_errors
+    - servfail_rate
+    - nxdomain_rate
+    - timeout_rate
+    - cache_hit_ratio
+    - dnssec_validation_state
+    - ddns_sync_state
+    - provider_health
+    - route_health
+    - certificate_state
+    - anycast_state
+    - node_health
+  raw_dns_queries: false
+  raw_packets: false
+  raw_payloads: false
+  credentials: false
+  secrets: false
+  private_ips: false
+
+alerts:
+  severity: [info, warning, critical]
+  correlation:
+    - dns_failure_plus_route_failure
+    - dns_failure_plus_provider_failure
+    - dnssec_failure_plus_delegation_change
+    - latency_spike_plus_path_change
+    - ddns_drift_plus_address_change
+    - certificate_expiry_plus_dns01_failure
+    - anycast_failure_plus_origin_failure
+    - provider_drift_plus_health_degradation
+  notify: control-plane
+  automatic_failover: health-gated
+
+safety:
+  read_only_monitoring_default: true
+  mutations_require_policy: true
+  destructive_migration: false
+  unauthorized_dns_changes: false
+  exploit_execution: false
+  credential_collection: false
