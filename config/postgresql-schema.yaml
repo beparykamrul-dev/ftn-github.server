@@ -1,0 +1,86 @@
+version: 1
+platform: FTN
+name: postgresql-logical-schema
+
+# Logical schema only. Apply through a reviewed migration system at runtime.
+# No credentials, real provider tokens or private infrastructure addresses.
+
+database:
+  engine: postgresql
+  pooler: pgbouncer
+  migrations:
+    mode: reviewed
+    destructive: false
+
+entities:
+  zones:
+    primary_key: id
+    fields: [id, name, scope, dnssec_enabled, status, created_at, updated_at]
+  nodes:
+    primary_key: id
+    fields: [id, zone_id, type, role, status, capabilities, last_seen_at]
+  providers:
+    primary_key: id
+    fields: [id, name, class, enabled, health_state, capabilities, updated_at]
+  provider_bindings:
+    primary_key: id
+    fields: [id, provider_id, zone_id, priority, enabled, health_state]
+  dns_records:
+    primary_key: id
+    fields: [id, zone_id, name, type, value_ref, ttl, proxied, status, version]
+  dnssec_state:
+    primary_key: id
+    fields: [id, zone_id, enabled, state, last_checked_at]
+  ddns_records:
+    primary_key: id
+    fields: [id, zone_id, name, record_type, provider_id, desired_state, observed_state, last_update_at]
+  anycast_routes:
+    primary_key: id
+    fields: [id, site_id, prefix_ref, family, state, health_state, last_change_at]
+  bgp_sessions:
+    primary_key: id
+    fields: [id, node_id, family, state, route_count, health_state, last_change_at]
+  geo_policies:
+    primary_key: id
+    fields: [id, name, mode, rules, enabled, version]
+  health_checks:
+    primary_key: id
+    fields: [id, target_type, target_id, protocol, state, latency_ms, checked_at]
+  health_events:
+    primary_key: id
+    fields: [id, severity, source, target_type, target_id, code, message_ref, occurred_at, resolved_at]
+  certificates:
+    primary_key: id
+    fields: [id, hostname_ref, issuer, state, not_before, not_after, renewal_state]
+  audit_events:
+    primary_key: id
+    fields: [id, actor_ref, action, resource_type, resource_id, request_id, result, created_at]
+
+relations:
+  - zones -> nodes
+  - zones -> provider_bindings
+  - zones -> dns_records
+  - zones -> dnssec_state
+  - zones -> ddns_records
+  - providers -> provider_bindings
+  - providers -> ddns_records
+  - nodes -> bgp_sessions
+  - nodes -> health_checks
+  - anycast_routes -> health_checks
+  - providers -> health_checks
+
+indexes:
+  - [zones, name]
+  - [dns_records, zone_id, name, type]
+  - [health_checks, target_type, target_id, checked_at]
+  - [health_events, occurred_at, severity]
+  - [audit_events, created_at, action]
+
+privacy:
+  raw_packets: false
+  raw_dns_queries: false
+  payloads: false
+  credentials: false
+  secrets: false
+  private_addresses: false
+  github_export: sanitized_snapshots_only
