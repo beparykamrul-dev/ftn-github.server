@@ -1,0 +1,29 @@
+version: 1
+
+# Family Guard does not use public Family DNS as its resolver source.
+# DNS decisions remain local first; resolver traffic may only go to approved FTN endpoints.
+resolver:
+  mode: ftn-only
+  public_fallback: false
+  direct_public_dns: false
+  query_external_family_dns: false
+
+blocked_public_resolvers:
+  ipv4:
+    - 1.1.1.1
+    - 1.0.0.1
+  ipv6:
+    - 2606:4700:4700::1111
+    - 2606:4700:4700::1001
+
+privacy:
+  raw_queries_persisted: false
+  payload_inspection: false
+  external_query_logging: false
+  aggregate_usage_only: true
+
+routing:
+  prefer_local_policy: true
+  fail_closed_for_unapproved_dns: true
+  approved_ftn_resolvers: []
+  # Real FTN resolver addresses are provisioned outside Git.
