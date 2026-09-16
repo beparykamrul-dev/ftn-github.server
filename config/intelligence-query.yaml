@@ -1,0 +1,149 @@
+version: 1
+platform: FTN
+name: intelligence-query
+
+# Read-oriented query contract for the unified FTN intelligence plane.
+# Queries operate on public/authorized observations and sanitized metadata.
+
+query:
+  enabled: true
+  endpoint: /api/v1/intelligence/search
+  mode: read-only
+  audit: true
+  pagination: cursor
+  max_results: runtime
+  default_time_range: runtime
+
+identifiers:
+  exact:
+    - ip
+    - ipv6
+    - asn
+    - prefix
+    - domain
+    - nameserver
+    - certificate
+    - cpe
+    - cve
+    - firmware
+    - chipset
+    - baseband
+    - provider
+    - node
+    - service
+  normalized: true
+  aliases: true
+
+filters:
+  network:
+    ip: true
+    asn: true
+    prefix: true
+    route: true
+    bgp_session: true
+  dns:
+    domain: true
+    record: true
+    nameserver: true
+    dnssec: true
+    resolver: true
+  registration:
+    whois: true
+    rdap: true
+  security:
+    cve: true
+    cpe: true
+    firmware: true
+    chipset: true
+    baseband: true
+    advisory: true
+  infrastructure:
+    provider: true
+    node: true
+    service: true
+    sensor: true
+  performance:
+    geo: true
+    latency: true
+    health: true
+    reachability: true
+
+correlation_queries:
+  ip:
+    expand: [prefix, asn, reverse-dns, route, provider, certificate, geo, health]
+  asn:
+    expand: [prefix, route, provider, geo, health]
+  domain:
+    expand: [dns-record, nameserver, ip, certificate, whois, rdap, provider, route]
+  nameserver:
+    expand: [domain, ip, asn, provider, route]
+  route:
+    expand: [prefix, asn, provider, bgp-session, health]
+  certificate:
+    expand: [domain, ip, nameserver, provider]
+  cve:
+    expand: [cpe, vendor, firmware, chipset, baseband, affected-assets]
+  node:
+    expand: [service, provider, geo, health, routes]
+
+search_modes:
+  quick:
+    max_hops: 1
+  deep:
+    max_hops: 5
+    include_relationships: true
+  timeline:
+    sort: timestamp
+    include_changes: true
+  incident:
+    include_health: true
+    include_route_changes: true
+    include_dns_changes: true
+    include_certificate_changes: true
+
+change_detection:
+  enabled: true
+  compare:
+    - dns
+    - rdap
+    - whois
+    - route
+    - bgp
+    - certificate
+    - provider-health
+    - reachability
+    - firmware
+  alert_threshold: policy
+
+results:
+  include:
+    - entity
+    - relationships
+    - source
+    - timestamp
+    - confidence
+    - health_state
+    - latency_ms
+    - change_state
+  exclude:
+    - credentials
+    - secrets
+    - raw_payloads
+    - raw_packets
+    - private_personal_data
+
+indexes:
+  primary: config/opensearch-indexes.yaml
+  graph: config/intelligence-correlation.yaml
+  durable_state: postgresql
+  backup: kopia
+
+security:
+  read_only_by_default: true
+  mutations_out_of_scope: true
+  authorized_sources_only: true
+  public_osint_only: true
+  exploit_execution: false
+  credential_collection: false
+  user_tracking: false
+  surveillance_interception: false
