@@ -1,0 +1,58 @@
+version: 1
+platform: FTN
+name: ddns-engine
+
+engine:
+  enabled: true
+  mode: health-gated
+  record_types: [A, AAAA]
+  address_families: [ipv4, ipv6]
+  dual_stack: true
+
+sources:
+  - node-public-ip
+  - provider-health
+  - control-plane-policy
+
+providers:
+  primary: cloudflare
+  fallback:
+    - dnspod
+    - duckdns
+    - porkbun
+
+update_policy:
+  allowlist_only: true
+  idempotent: true
+  preserve_ttl: true
+  minimum_interval_seconds: 60
+  debounce_seconds: 10
+  health_required: true
+  dry_run: true
+
+failure_policy:
+  retry: true
+  max_attempts: 3
+  exponential_backoff: true
+  provider_failover: true
+  never_delete_on_provider_error: true
+
+state:
+  local_cache: true
+  database: postgresql
+  audit_log: true
+  github_snapshot: sanitized
+
+secrets:
+  source: external-secret-store
+  provider_tokens: external_only
+
+telemetry:
+  include_addresses: aggregated-only
+  include_credentials: false
+  include_raw_requests: false
+  include_secrets: false
+
+security:
+  destructive_migration: false
+  unauthorized_record_change: false
