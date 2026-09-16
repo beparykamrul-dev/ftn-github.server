@@ -4,6 +4,7 @@ import com.familytimenet.familyguard.core.model.FamilyPolicy
 import com.familytimenet.familyguard.core.realtime.FtnRealtimeClient
 import com.familytimenet.familyguard.core.realtime.RealtimeEvent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 
@@ -18,9 +19,29 @@ class FamilyGuardSyncManager(
     private val scope: CoroutineScope
 ) {
     data class SyncResult(val policy: FamilyPolicy, val source: Source)
-    enum class Source { NETWORK, CACHE, DEFAULT }
+    enum class Source { NETWORK, LOCAL, CACHE, DEFAULT }
 
     private val lastHeartbeat = AtomicLong(0L)
+
+    suspend fun recoverLocal(): SyncResult {
+        val persisted = runCatching { policyRepository.loadPersisted() }.getOrNull()
+        if (persisted != null && validatePolicy(persisted)) {
+            versionStore.activate(persisted.version)
+            return SyncResult(persisted, Source.LOCAL)
+        }
+        val cachedJson = runCatching { offlineCache.load() }.getOrNull()
+        if (!cachedJson.isNullOrBlank()) {
+            val cached = runCatching { PolicyJsonParser.parse(cachedJson) }.getOrNull()
+            if (cached != null && validatePolicy(cached)) {
+                policyRepository.activate(cached, cachedJson)
+                versionStore.activate(cached.version)
+                return SyncResult(cached, Source.CACHE)
+            }
+        }
+        val fallback = policyRepository.defaultPolicy()
+        if (validatePolicy(fallback)) return SyncResult(fallback, Source.DEFAULT)
+        throw IllegalStateException("No valid Family Guard policy available")
+    }
 
     suspend fun sync(deviceId: String, sessionReference: String): SyncResult {
         val result = runCatching { policyClient.fetchPolicy(deviceId, sessionReference) }.getOrNull()
@@ -29,25 +50,10 @@ class FamilyGuardSyncManager(
             activate(deviceId, sessionReference, networkPolicy, result.rawJson)
             return SyncResult(networkPolicy, Source.NETWORK)
         }
-
-        val cached = runCatching { offlineCache.load() }.getOrNull()
-        if (!cached.isNullOrBlank()) {
-            val policy = runCatching { PolicyJsonParser.parse(cached) }.getOrNull()
-            if (policy != null && validatePolicy(policy) && policy.version >= versionStore.activeVersion()) {
-                policyRepository.activate(policy)
-                versionStore.activate(policy.version)
-                return SyncResult(policy, Source.CACHE)
-            }
-        }
-
-        val fallback = policyRepository.defaultPolicy()
-        if (validatePolicy(fallback)) return SyncResult(fallback, Source.DEFAULT)
-        throw IllegalStateException("No valid Family Guard policy available")
+        return recoverLocal()
     }
 
-    fun startRealtime(deviceId: String, sessionReference: String) =
-        realtimeClient.start(deviceId, sessionReference)
-
+    fun startRealtime(deviceId: String, sessionReference: String) = realtimeClient.start(deviceId, sessionReference)
     fun stopRealtime() = realtimeClient.stop()
 
     fun handleRealtimeEvent(deviceId: String, sessionReference: String, text: String) {
@@ -66,14 +72,13 @@ class FamilyGuardSyncManager(
                     val fallback = policyRepository.defaultPolicy()
                     if (validatePolicy(fallback)) {
                         policyRepository.activate(fallback)
-                        versionStore.activate(fallback.version, allowRollback = true)
+                        versionStore.activate(event.version, allowRollback = true)
                     }
                 }
             }
             is RealtimeEvent.DeviceCommand -> handleCommand(deviceId, sessionReference, event.command)
             is RealtimeEvent.Heartbeat -> lastHeartbeat.set(event.timestamp)
-            is RealtimeEvent.UsageSummary -> Unit
-            is RealtimeEvent.Unknown -> Unit
+            is RealtimeEvent.UsageSummary, is RealtimeEvent.Unknown -> Unit
         }
     }
 
@@ -89,23 +94,16 @@ class FamilyGuardSyncManager(
         }
     }
 
-    private suspend fun activate(
-        deviceId: String,
-        sessionReference: String,
-        policy: FamilyPolicy,
-        originalJson: String?
-    ) {
+    private suspend fun activate(deviceId: String, sessionReference: String, policy: FamilyPolicy, originalJson: String?) {
         val current = versionStore.activeVersion()
         if (current > 0 && policy.version < current) return
-        policyRepository.activate(policy)
+        if (!validatePolicy(policy)) return
+        policyRepository.activate(policy, originalJson)
         versionStore.activate(policy.version)
         if (!originalJson.isNullOrBlank()) offlineCache.save(originalJson)
         runCatching { policyAckClient.acknowledge(deviceId, sessionReference, policy.version) }
     }
 
     private fun validatePolicy(policy: FamilyPolicy): Boolean =
-        policy.version > 0 &&
-            !policy.privacy.rawDnsLogging &&
-            !policy.privacy.payloadInspection &&
-            policy.privacy.aggregateUsageOnly
+        policy.version > 0 && !policy.privacy.rawDnsLogging && !policy.privacy.payloadInspection && policy.privacy.aggregateUsageOnly
 }
