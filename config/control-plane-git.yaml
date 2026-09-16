@@ -1,0 +1,44 @@
+version: 1
+name: FTN Git Control Plane
+
+api:
+  registry: /api/v1/git/repositories
+  sync: /api/v1/git/sync
+  services: /api/v1/git/services
+  deployments: /api/v1/git/deployments
+  health: /api/v1/git/health
+
+actions:
+  - list_repositories
+  - refresh_registry
+  - sync_repository
+  - inspect_service
+  - build_registered_service
+  - deploy_registered_service
+  - restart_registered_service
+  - rollback_registered_service
+  - health_check
+
+state:
+  source: github
+  runtime_state: target_node
+  cache: memory_or_postgresql
+  persist_tokens: false
+  persist_credentials: false
+  persist_raw_traffic: false
+
+security:
+  auth: existing-control-plane-auth
+  require_registered_repository: true
+  require_registered_node: true
+  require_registered_service: true
+  shell_execution: allowlisted-only
+  deployment: explicit-action-required
+  rollback: registered-release-only
+
+lifecycle:
+  sync_does_not_deploy: true
+  build_does_not_restart: true
+  deploy_must_pass_health: true
+  failed_health_blocks_promotion: true
+  existing_runtime_is_preserved: true
