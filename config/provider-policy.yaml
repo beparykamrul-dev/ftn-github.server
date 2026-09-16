@@ -1,0 +1,181 @@
+version: 1
+platform: FTN
+name: provider-policy
+
+# Unified provider selection policy.
+# Runtime endpoints, credentials, real costs, prefixes and private addresses stay outside Git.
+
+selection:
+  order:
+    - health
+    - latency
+    - geo
+    - capacity
+    - provider_policy
+  require_healthy: true
+  exclude_failed: true
+  allow_degraded: runtime-policy
+  automatic_failover: true
+  automatic_recovery: true
+  hysteresis_seconds: 30
+
+services:
+  dns:
+    mode: authoritative
+    priority: [cloudflare, dnspod, akamai, powerdns-enterprise, technitium-dns-enterprise, coredns]
+    capability_gate: authoritative_dns
+  recursive:
+    mode: resolver
+    priority: [unbound, hickory-dns, technitium-dns-enterprise, coredns]
+    capability_gate: recursive_dns
+  ddns:
+    mode: dynamic-dns
+    priority: [cloudflare, dnspod, duckdns, porkbun, powerdns-enterprise, technitium-dns-enterprise]
+    capability_gate: ddns
+  edge:
+    mode: edge-delivery
+    priority: [cloudflare, akamai, fastly]
+    capability_gate: edge
+  certificate:
+    mode: acme-dns01
+    priority: [cloudflare, dnspod, fastly, porkbun]
+    capability_gate: dns01
+  anycast:
+    mode: bgp-health-gated
+    priority: [runtime-provider, runtime-origin]
+    capability_gate: anycast
+
+capability_gates:
+  authoritative_dns: [dns, health]
+  recursive_dns: [resolver, health]
+  ddns: [ddns, health]
+  dns01: [dns01, health]
+  edge: [edge, health]
+  certificate: [certificate, health]
+  anycast: [bgp, health]
+
+providers:
+  cloudflare:
+    preferred_for: [dns, ddns, edge, tunnel, certificate, health]
+    fallback: true
+  dnspod:
+    preferred_for: [dns, ddns, dns01, health]
+    fallback: true
+  akamai:
+    preferred_for: [dns, edge, health]
+    fallback: true
+  fastly:
+    preferred_for: [edge, certificate, health]
+    fallback: true
+  powerdns-enterprise:
+    preferred_for: [authoritative-dns, dnssec, ddns]
+    fallback: true
+  technitium-dns-enterprise:
+    preferred_for: [authoritative-dns, recursive-dns, dnssec, ddns]
+    fallback: true
+  coredns:
+    preferred_for: [dns, service-discovery]
+    fallback: true
+  unbound:
+    preferred_for: [recursive-dns]
+    fallback: true
+  hickory-dns:
+    preferred_for: [recursive-dns]
+    fallback: true
+  duckdns:
+    preferred_for: [ddns]
+    fallback: true
+  porkbun:
+    preferred_for: [dns, ddns, dns01]
+    fallback: true
+
+latency_policy:
+  target_ms: runtime
+  degraded_threshold_ms: runtime
+  failed_threshold_ms: runtime
+  observation_window_seconds: 60
+  minimum_samples: 3
+  prefer_low_latency: true
+
+cost_policy:
+  enabled: true
+  cost_score: runtime
+  egress_cost: runtime
+  request_cost: runtime
+  bandwidth_cost: runtime
+  never_invent_provider_prices: true
+  cost_used_as_tiebreaker: true
+
+geo_policy:
+  enabled: true
+  dimensions: [country, region, city, timezone, colo, asn, zone, node]
+  prefer_local_provider: runtime
+  provider_geo_capability_required: false
+
+capacity_policy:
+  enabled: true
+  signals: [node_load, connection_count, error_rate, queue_depth]
+  thresholds: runtime
+  exclude_overloaded: true
+
+failover:
+  groups:
+    dns: [cloudflare, dnspod, akamai, powerdns-enterprise, technitium-dns-enterprise, coredns]
+    recursive: [unbound, hickory-dns, technitium-dns-enterprise, coredns]
+    ddns: [cloudflare, dnspod, duckdns, porkbun]
+    edge: [cloudflare, akamai, fastly]
+    certificate: [cloudflare, dnspod, fastly, porkbun]
+  circuit_breaker:
+    enabled: true
+    open_after_failures: 3
+    cooldown_seconds: 30
+    half_open_probe: true
+  preserve_state: true
+  never_delete_on_provider_error: true
+  rollback_partial_mutations: true
+
+mutation_policy:
+  allowlist_only: true
+  dry_run_supported: true
+  idempotent: true
+  explicit_delete_allowlist: true
+  health_gate: true
+  audit_required: true
+  destructive_migration: false
+
+control_plane:
+  registry: config/provider-registry.yaml
+  discovery: config/provider-discovery.yaml
+  endpoints: config/provider-endpoints.yaml
+  health: config/provider-health-matrix.yaml
+  sync: config/provider-sync.yaml
+  routing: config/provider-routing.yaml
+  adapter_contract: config/provider-adapter-contract.yaml
+
+observability:
+  local_state: true
+  ram_buffer: true
+  postgresql: true
+  opensearch: true
+  websocket: true
+  github_snapshot: sanitized-policy-state
+  metrics:
+    - selected_provider
+    - selected_service
+    - health_state
+    - latency_ms
+    - capacity_state
+    - failover_state
+    - route_reason_code
+  raw_packets: false
+  raw_payloads: false
+  raw_provider_requests: false
+  credentials: false
+  secrets: false
+  private_ips: false
+
+security:
+  provider_tokens_external: true
+  credentials_external: true
+  endpoints_runtime: true
+  unauthorized_route_change: false
