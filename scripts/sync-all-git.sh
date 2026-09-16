@@ -38,8 +38,8 @@ for block in text.split('\n  - name: ')[1:]:
 for name, full, clone in repos:
     dest = root / name
     if (dest / '.git').exists():
-        subprocess.run(['git','-C',str(dest),'fetch','--prune','origin'], check=True)
         subprocess.run(['git','-C',str(dest),'remote','set-url','origin',clone], check=True)
+        subprocess.run(['git','-C',str(dest),'fetch','--prune','origin'], check=True)
     else:
         subprocess.run(['git','clone','--filter=blob:none',clone,str(dest)], check=True)
     print('SYNC', full)
