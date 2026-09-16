@@ -1,0 +1,43 @@
+version: 1
+platform: FTN
+name: dns-health-plane
+
+health:
+  interval_seconds: 15
+  timeout_seconds: 5
+  consecutive_failures_to_withdraw: 3
+  consecutive_successes_to_restore: 2
+
+checks:
+  - id: authoritative
+    targets: [powerdns-enterprise, technitium-dns-enterprise, coredns]
+    protocols: [udp53, tcp53]
+  - id: recursive
+    targets: [unbound, hickory-dns]
+    protocols: [udp53, tcp53]
+  - id: provider
+    targets: [cloudflare, dnspod, akamai]
+    mode: api-and-dns
+  - id: portal
+    targets: [aspnet-core, go, postgresql, pgbouncer]
+    mode: service
+  - id: certificate
+    targets: [lets-encrypt]
+    mode: acme-dns01
+
+routing:
+  healthy_only: true
+  prefer_low_latency: true
+  geo_aware: true
+  automatic_failover: true
+  anycast_withdraw: true
+
+state:
+  local_first: true
+  ram_buffer: true
+  github: sanitized-snapshots-only
+
+security:
+  credentials_in_git: false
+  secrets_in_git: false
+  raw_queries_in_git: false
