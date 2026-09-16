@@ -1,20 +1,40 @@
-version: 1
+version: 2
 
-# Family Guard does not use public Family DNS as its resolver source.
-# DNS decisions remain local first; resolver traffic may only go to approved FTN endpoints.
+# Family Guard resolver policy.
+# No public resolver is hard-blocked. Resolver selection is policy-controlled.
 resolver:
-  mode: ftn-only
+  mode: policy-controlled
+  preferred: ftn
   public_fallback: false
-  direct_public_dns: false
-  query_external_family_dns: false
+  direct_public_dns: policy-controlled
+  query_external_family_dns: policy-controlled
+  require_dnssec: true
 
-blocked_public_resolvers:
-  ipv4:
-    - 1.1.1.1
-    - 1.0.0.1
-  ipv6:
-    - 2606:4700:4700::1111
-    - 2606:4700:4700::1001
+resolvers:
+  ftn:
+    enabled: true
+    approved: true
+    addresses: []
+    transport: policy-controlled
+  cloudflare_family:
+    enabled: true
+    approved: false
+    ipv4:
+      - 1.1.1.1
+      - 1.0.0.1
+    ipv6:
+      - 2606:4700:4700::1111
+      - 2606:4700:4700::1001
+    note: Use only when explicitly enabled by the active resolver policy.
+
+policy:
+  resolver_allowlist: []
+  allow_public_resolvers: false
+  allow_cloudflare_family: false
+  allow_ftn_resolvers: true
+  prefer_ftn_resolvers: true
+  require_health_check: true
+  require_dnssec: true
 
 privacy:
   raw_queries_persisted: false
@@ -25,5 +45,10 @@ privacy:
 routing:
   prefer_local_policy: true
   fail_closed_for_unapproved_dns: true
-  approved_ftn_resolvers: []
-  # Real FTN resolver addresses are provisioned outside Git.
+  approved_resolvers_runtime: []
+  # Real FTN resolver addresses and credentials are provisioned outside Git.
+
+security:
+  dnssec_validation: required
+  dnssec_failure_action: block_response
+  no_hardcoded_public_resolver_block: true
