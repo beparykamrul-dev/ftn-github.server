@@ -1,0 +1,92 @@
+version: 1
+platform: FTN
+name: data-governance
+
+# Central governance for telemetry, operational state and audit data.
+# Policy applies before data reaches the central database or any external sink.
+
+data_classes:
+  operational:
+    examples: [health, latency, node-state, service-state]
+    central_db: true
+    github_snapshot: sanitized
+  configuration:
+    examples: [zone-policy, provider-capability, routing-policy]
+    central_db: true
+    github: allowed_if_non_secret
+  audit:
+    examples: [actor, action, resource, request_id, result]
+    central_db: true
+    github_snapshot: sanitized
+  sensitive:
+    examples: [credentials, tokens, private_keys, secrets, raw_payloads]
+    central_db: false
+    github: false
+    telemetry: false
+
+collection:
+  minimization: true
+  purpose_binding: true
+  classify_before_persist: true
+  sanitize_before_external_export: true
+
+identity:
+  actor_reference: pseudonymous-runtime-id
+  user_data: minimum-necessary
+  credentials: never_collected
+
+storage:
+  central_database:
+    engine: postgresql
+    source_of_truth: true
+    encryption: runtime-policy
+    access: rbac
+    audit: true
+  local_ram:
+    purpose: transient-ingestion
+    secrets: false
+  github:
+    role: source-and-sanitized-snapshot
+    raw_data: prohibited
+
+retention:
+  policy: per-data-class
+  deletion: controlled-and-audited
+  destructive_migration: false
+  legal_hold: runtime-controlled
+
+access_control:
+  default: deny
+  roles:
+    - super-admin
+    - admin
+    - engineer
+    - operator
+    - viewer
+  least_privilege: true
+  service_accounts: scoped
+  database_direct_access: restricted
+
+quality:
+  schema_validation: required
+  deduplication: required
+  timestamp_validation: required
+  source_identity: required
+  lineage: required
+  anomaly_detection: enabled
+
+export:
+  github: sanitized-only
+  external_telemetry: disabled-by-default
+  raw_packets: prohibited
+  raw_dns_queries: prohibited
+  raw_payloads: prohibited
+  secrets: prohibited
+  credentials: prohibited
+  private_addresses: prohibited
+
+compliance:
+  audit_trail: required
+  policy_versioning: true
+  consent_or_authorization: runtime-dependent
+  incident_response: enabled
