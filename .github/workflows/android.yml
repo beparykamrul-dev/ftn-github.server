@@ -1,0 +1,38 @@
+name: FTN Family Guard Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/ftn-family-guard/**'
+      - '.github/workflows/android.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/ftn-family-guard/**'
+      - '.github/workflows/android.yml'
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android/ftn-family-guard
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Validate Gradle project
+        run: |
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
+          test -f app/build.gradle.kts
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        run: gradle test
+      - name: Debug APK build
+        run: gradle assembleDebug
