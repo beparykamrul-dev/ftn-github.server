@@ -1,0 +1,249 @@
+version: 1
+platform: FTN
+name: intelligence-alerting
+
+# Provider-aware defensive alerting. Detection uses public/authorized observations
+# and sanitized metadata only. No exploit execution, interception or credentials.
+
+engine:
+  enabled: true
+  interval_seconds: 15
+  evaluation_window_seconds: 60
+  correlation_window_seconds: 300
+  deduplication: true
+  grouping: entity-and-incident
+  hysteresis_seconds: 30
+
+severity:
+  levels: [info, warning, critical]
+  defaults:
+    change: info
+    degradation: warning
+    outage: critical
+    vulnerability: warning
+  escalation:
+    repeated_failures: 3
+    repeated_changes: 3
+
+providers:
+  cloudflare:
+    enabled: true
+    domains: [dns, ddns, health, edge, tunnel, certificate]
+    alerts: [provider-degraded, dns-change, ddns-drift, tunnel-down, certificate-change]
+  dnspod:
+    enabled: true
+    domains: [dns, ddns, dns01, health, certificate]
+    alerts: [provider-degraded, dns-change, ddns-drift, dns01-failure]
+  akamai:
+    enabled: true
+    domains: [dns, edge, health]
+    alerts: [provider-degraded, dns-change, edge-reachability]
+  fastly:
+    enabled: true
+    domains: [edge, health, certificate]
+    alerts: [provider-degraded, edge-reachability, certificate-change]
+  powerdns-enterprise:
+    enabled: true
+    domains: [authoritative, dnssec, health]
+    alerts: [dns-failure, dnssec-change, latency]
+  technitium-dns-enterprise:
+    enabled: true
+    domains: [authoritative, recursive, dnssec, health]
+    alerts: [dns-failure, dnssec-change, latency]
+  coredns:
+    enabled: true
+    domains: [authoritative, service-discovery, health]
+    alerts: [dns-failure, latency]
+  unbound:
+    enabled: true
+    domains: [recursive, health]
+    alerts: [resolver-failure, latency]
+  hickory-dns:
+    enabled: true
+    domains: [recursive, health]
+    alerts: [resolver-failure, latency]
+  duckdns:
+    enabled: true
+    domains: [ddns]
+    alerts: [ddns-drift, provider-degraded]
+  porkbun:
+    enabled: true
+    domains: [dns, ddns, dns01]
+    alerts: [provider-degraded, dns-change, ddns-drift, dns01-failure]
+
+rules:
+  dns:
+    - id: dns-record-change
+      severity: info
+      when: record-observation-diff
+    - id: dns-resolution-failure
+      severity: critical
+      when: consecutive-resolution-failures
+    - id: dnssec-state-change
+      severity: warning
+      when: dnssec-state-diff
+  ddns:
+    - id: ddns-drift
+      severity: warning
+      when: observed-address-diff-desired-state
+    - id: ddns-provider-failure
+      severity: critical
+      when: provider-update-fails-after-retries
+  routing:
+    - id: route-change
+      severity: info
+      when: authorized-route-diff
+    - id: unexpected-route
+      severity: critical
+      when: route-not-in-authorized-policy
+    - id: anycast-withdrawal
+      severity: critical
+      when: healthy-origin-lost-and-route-withdrawn
+  bgp:
+    - id: bgp-session-down
+      severity: critical
+      when: session-down-consecutive
+    - id: prefix-count-change
+      severity: warning
+      when: route-count-delta-over-threshold
+    - id: rpki-invalid
+      severity: critical
+      when: rpki-validation-invalid
+  asn-ip:
+    - id: asn-path-change
+      severity: warning
+      when: asn-path-diff
+    - id: ip-provider-change
+      severity: info
+      when: provider-association-diff
+  certificates:
+    - id: certificate-expiring
+      severity: warning
+      when: days-to-expiry-below-policy
+    - id: certificate-expired
+      severity: critical
+      when: certificate-expired
+    - id: certificate-domain-change
+      severity: warning
+      when: certificate-domain-set-diff
+  vulnerabilities:
+    - id: asset-cve-match
+      severity: warning
+      when: cpe-cve-match
+    - id: critical-cve-match
+      severity: critical
+      when: severity-critical-and-affected-asset
+    - id: firmware-advisory-match
+      severity: warning
+      when: firmware-or-chipset-advisory-match
+    - id: baseband-advisory-match
+      severity: warning
+      when: authorized-hardware-inventory-match
+  provider-health:
+    - id: provider-degraded
+      severity: warning
+      when: provider-health-below-policy
+    - id: provider-outage
+      severity: critical
+      when: provider-health-failed
+  node-service:
+    - id: node-unhealthy
+      severity: critical
+      when: node-health-failed
+    - id: service-unhealthy
+      severity: critical
+      when: service-health-failed
+  performance:
+    - id: latency-regression
+      severity: warning
+      when: latency-baseline-breach
+    - id: reachability-change
+      severity: warning
+      when: reachability-state-diff
+  censorship:
+    - id: censorship-observation-change
+      severity: info
+      when: authorized-public-probe-result-diff
+  sensors:
+    - id: kismet-sensor-offline
+      severity: warning
+      when: authorized-sensor-health-failed
+
+correlation:
+  - id: dns-route-latency
+    inputs: [dns-resolution-failure, route-change, latency-regression]
+    result: network-incident-candidate
+  - id: bgp-prefix-provider
+    inputs: [bgp-session-down, prefix-count-change, provider-degraded]
+    result: routing-incident-candidate
+  - id: dns-certificate
+    inputs: [dns-record-change, certificate-domain-change]
+    result: service-change-candidate
+  - id: cve-asset
+    inputs: [asset-cve-match, node-health, service-health]
+    result: vulnerability-impact-candidate
+  - id: provider-edge
+    inputs: [provider-degraded, edge-reachability, reachability-change]
+    result: provider-incident-candidate
+  - id: anycast-health
+    inputs: [node-unhealthy, route-change, anycast-withdrawal]
+    result: anycast-incident-candidate
+
+thresholds:
+  latency:
+    multiplier_from_baseline: 2.0
+    minimum_samples: 3
+  reachability:
+    consecutive_failures: 3
+  bgp:
+    route_count_change_percent: 20
+  certificate:
+    warning_days: 30
+    critical_days: 7
+  vulnerability:
+    critical_severity: critical
+
+incident:
+  lifecycle: [open, acknowledged, investigating, mitigated, resolved]
+  auto_resolve_after_healthy_checks: 2
+  preserve_history: true
+  attach:
+    - observations
+    - relationships
+    - provider
+    - node
+    - service
+    - latency
+    - route-state
+
+notifications:
+  control_plane: true
+  websocket: true
+  dashboard: true
+  external_channels:
+    enabled: true
+    configuration: runtime-secret-store
+  deduplicate: true
+  rate_limit: runtime
+
+storage:
+  hot: opensearch
+  durable: postgresql
+  backup: kopia
+  ram_buffer: true
+  github: sanitized-incident-snapshots-only
+
+safety:
+  authorized_and_public_sources_only: true
+  raw_packets: false
+  raw_payloads: false
+  credentials: false
+  secrets: false
+  private_personal_data: false
+  user_tracking: false
+  surveillance_interception: false
+  exploit_execution: false
+  credential_dumping: false
+  lateral_movement: false
+  persistence: false
+  destructive_actions: false
