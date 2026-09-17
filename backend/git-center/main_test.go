@@ -32,9 +32,29 @@ func TestGitCenterDeployRequiresApproval(t *testing.T) {
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "approval-required") { t.Fatalf("unexpected response: %d %s", w.Code, w.Body.String()) }
 }
 
-func TestGitCenterApprovedDeployDoesNotExecute(t *testing.T) {
+func TestGitCenterApprovedDeployRequiresIdempotency(t *testing.T) {
 	s := &State{Services: []Service{{ID: "svc-1"}}}
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/git/deploy", strings.NewReader(`{"id":"svc-1","approval":"approved"}`))
+	w := httptest.NewRecorder()
+	s.approval("deploy")(w, r)
+	if w.Code != http.StatusBadRequest { t.Fatalf("expected 400, got %d", w.Code) }
+}
+
+func TestGitCenterApprovedDeployIsIdempotent(t *testing.T) {
+	s := &State{Services: []Service{{ID: "svc-1"}}}
+	body := `{"id":"svc-1","approval":"approved","idempotency_key":"deploy-1"}`
+	for i := 0; i < 2; i++ {
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/git/deploy", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		s.approval("deploy")(w, r)
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"idempotency_key":"deploy-1"`) { t.Fatalf("unexpected response: %d %s", w.Code, w.Body.String()) }
+	}
+	if len(s.Audit) != 1 { t.Fatalf("expected one audit record, got %d", len(s.Audit)) }
+}
+
+func TestGitCenterApprovedDeployDoesNotExecuteByApprovalAlone(t *testing.T) {
+	s := &State{Services: []Service{{ID: "svc-1"}}}
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/git/deploy", strings.NewReader(`{"id":"svc-1","approval":"approved","idempotency_key":"deploy-2"}`))
 	w := httptest.NewRecorder()
 	s.approval("deploy")(w, r)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"executed":false`) { t.Fatalf("unexpected response: %d %s", w.Code, w.Body.String()) }
@@ -42,7 +62,7 @@ func TestGitCenterApprovedDeployDoesNotExecute(t *testing.T) {
 
 func TestGitCenterUnknownApprovalRejected(t *testing.T) {
 	s := &State{Services: []Service{{ID: "svc-1"}}}
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/git/deploy", strings.NewReader(`{"id":"unknown","approval":"approved"}`))
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/git/deploy", strings.NewReader(`{"id":"unknown","approval":"approved","idempotency_key":"x"}`))
 	w := httptest.NewRecorder()
 	s.approval("deploy")(w, r)
 	if w.Code != http.StatusNotFound { t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String()) }
