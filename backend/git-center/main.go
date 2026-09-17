@@ -17,6 +17,8 @@ type Service struct {
 
 type State struct{ Services []Service }
 
+var healthClient = &http.Client{Timeout: 5 * time.Second}
+
 func main() {
 	s := &State{Services: []Service{{ID: "ftn-github.server", Owner: "beparykamrul-dev", Repository: "ftn-github.server", Branch: "main", Node: "control-plane", Service: "control-plane", SourcePath: "/opt/ftn-github.server", Sync: "metadata", Build: "registered", Deploy: "approval-required", Health: "http://127.0.0.1:8080/healthz"}}}
 	mux := http.NewServeMux()
@@ -44,10 +46,11 @@ func (s *State) action(kind string) http.HandlerFunc { return func(w http.Respon
 	http.Error(w,"registered service not found",404)
 } }
 
-func (s *State) health(w http.ResponseWriter, r *http.Request) { if r.Method != http.MethodGet { method(w); return }; out:=[]map[string]any{}; for _,svc:=range s.Services { item:=map[string]any{"id":svc.ID,"service":svc.Service,"node":svc.Node,"health_url":svc.Health,"status":"unknown"}; if svc.Health!="" { if b,err:=http.Get(svc.Health); err==nil { item["status"]="healthy"; item["http_status"]=b.StatusCode; b.Body.Close() } else { item["status"]="unreachable" } }; if svc.SourcePath!="" { if h,err:=gitHead(svc.SourcePath); err==nil { item["head"]=h } }; out=append(out,item) }; write(w,map[string]any{"services":out}) }
+func (s *State) health(w http.ResponseWriter, r *http.Request) { if r.Method != http.MethodGet { method(w); return }; out:=[]map[string]any{}; for _,svc:=range s.Services { item:=map[string]any{"id":svc.ID,"service":svc.Service,"node":svc.Node,"health_url":svc.Health,"status":"unknown"}; if svc.Health!="" { b,err:=healthClient.Get(svc.Health); if err==nil { item["http_status"]=b.StatusCode; if b.StatusCode >= 200 && b.StatusCode < 400 { item["status"]="healthy" } else { item["status"]="unhealthy" }; b.Body.Close() } else { item["status"]="unreachable" } }; if svc.SourcePath!="" { if h,err:=gitHead(svc.SourcePath); err==nil { item["head"]=h } }; out=append(out,item) }; write(w,map[string]any{"services":out}) }
 
-func (s *State) approval(kind string) http.HandlerFunc { return func(w http.ResponseWriter, r *http.Request) { if r.Method != http.MethodPost { method(w); return }; var q struct{ ID string `json:"id"`; Approval string `json:"approval"` }; if err:=json.NewDecoder(http.MaxBytesReader(w,r.Body,16<<10)).Decode(&q); err!=nil { http.Error(w,"invalid json",400); return }; if strings.TrimSpace(q.ID)=="" { http.Error(w,"registered service id is required",400); return }; if strings.ToLower(strings.TrimSpace(q.Approval)) != "approved" { write(w,map[string]any{"action":kind,"status":"approval-required","executed":false,"service_id":q.ID}); return }; write(w,map[string]any{"action":kind,"status":"approval-recorded","executed":false,"service_id":q.ID,"note":"Execution is intentionally disabled in Git Center API; registered runtime automation must perform the approved action."}) } }
+func (s *State) approval(kind string) http.HandlerFunc { return func(w http.ResponseWriter, r *http.Request) { if r.Method != http.MethodPost { method(w); return }; var q struct{ ID string `json:"id"`; Approval string `json:"approval"` }; if err:=json.NewDecoder(http.MaxBytesReader(w,r.Body,16<<10)).Decode(&q); err!=nil { http.Error(w,"invalid json",400); return }; q.ID=strings.TrimSpace(q.ID); q.Approval=strings.ToLower(strings.TrimSpace(q.Approval)); if q.ID=="" { http.Error(w,"registered service id is required",400); return }; if !s.registered(q.ID) { http.Error(w,"registered service not found",404); return }; if q.Approval != "approved" { write(w,map[string]any{"action":kind,"status":"approval-required","executed":false,"service_id":q.ID}); return }; write(w,map[string]any{"action":kind,"status":"approval-recorded","executed":false,"service_id":q.ID,"note":"Execution is intentionally disabled in Git Center API; registered runtime automation must perform the approved action."}) } }
 
+func (s *State) registered(id string) bool { for _,svc:=range s.Services { if svc.ID==id { return true } }; return false }
 func gitHead(path string) (string,error) { if _,err:=os.Stat(filepath.Join(path,".git")); err!=nil{return "",err}; b,err:=exec.Command("git","-C",path,"rev-parse","--short","HEAD").Output(); return strings.TrimSpace(string(b)),err }
 func method(w http.ResponseWriter){http.Error(w,"method not allowed",405)}
 func write(w http.ResponseWriter,v any){w.Header().Set("Content-Type","application/json");_ = json.NewEncoder(w).Encode(v)}
