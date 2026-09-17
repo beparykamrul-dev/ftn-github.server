@@ -1,0 +1,21 @@
+version: 1
+service: ftn-git-center
+listen: :8096
+api:
+  services: /api/v1/git/services
+  sync: /api/v1/git/sync
+  build: /api/v1/git/build
+  health: /api/v1/git/health
+  deploy: /api/v1/git/deploy
+  rollback: /api/v1/git/rollback
+policy:
+  registered_repositories_only: true
+  registered_nodes_only: true
+  registered_services_only: true
+  allowlisted_build_profiles_only: true
+  deploy_requires_approval: true
+  rollback_requires_approval: true
+  execute_arbitrary_shell: false
+  preserve_existing_runtime: true
+  no_secret_export: true
+  no_raw_traffic_export: true
