@@ -5,6 +5,8 @@ import (
     "encoding/json"
     "log"
     "net/http"
+    "net/http/httputil"
+    "net/url"
     "os"
     "strings"
     "sync"
@@ -18,9 +20,13 @@ func main() {
     ctx,cancel:=context.WithTimeout(context.Background(),15*time.Second);defer cancel()
     sqlStore,err:=OpenSQLStore(ctx);if err!=nil{log.Fatalf("database startup failed: %v",err)};s.Store=sqlStore;if sqlStore!=nil{defer sqlStore.Close();if p,err:=sqlStore.ActivePolicy(ctx);err!=nil{log.Fatalf("load policy: %v",err)}else if p!=nil{s.Policy=p};if d,err:=sqlStore.ListDevices(ctx);err!=nil{log.Fatalf("load devices: %v",err)}else{s.Devices=d};log.Printf("PostgreSQL persistence enabled")}else{log.Printf("PostgreSQL DSN not configured; running in development memory mode")}
     api:=http.NewServeMux();api.HandleFunc("/api/v1/family/devices",s.devices);api.HandleFunc("/api/v1/family/policies/",s.policy);api.HandleFunc("/api/v1/dns/usage",s.usage);api.HandleFunc("/api/v1/dns/domain-rules",s.rules("domain"));api.HandleFunc("/api/v1/dns/ip-rules",s.rules("ip"));api.HandleFunc("/api/v1/family/profiles",s.profiles);api.HandleFunc("/api/v1/dns/health",s.dnsHealth);api.HandleFunc("/api/v1/providers",s.providers);api.HandleFunc("/api/v1/health/summary",s.summary);api.HandleFunc("/api/v1/family/android/enroll",s.enroll);api.HandleFunc("/api/v1/family/android/session",s.session)
+    gitCenterProxy:=newGitCenterProxy()
+    api.Handle("/api/v1/git/",gitCenterProxy)
     root:=http.NewServeMux();root.HandleFunc("/healthz",health);root.Handle("/api/",requireAPIAuth(api));root.HandleFunc("/ws/family",s.Hub.HandleWS);root.Handle("/",http.FileServer(http.Dir("../../web")))
     addr:=os.Getenv("FTN_FAMILY_GUARD_ADDR");if addr==""{addr=":8095"};srv:=&http.Server{Addr:addr,Handler:cors(root),ReadHeaderTimeout:5*time.Second,ReadTimeout:15*time.Second,WriteTimeout:15*time.Second,IdleTimeout:60*time.Second};log.Printf("FTN Family Guard backend listening on %s",addr);log.Fatal(srv.ListenAndServe())
 }
+
+func newGitCenterProxy() http.Handler { target,_:=url.Parse("http://127.0.0.1:8096");p:=httputil.NewSingleHostReverseProxy(target);p.ErrorHandler=func(w http.ResponseWriter,_ *http.Request,err error){http.Error(w,"git center unavailable",http.StatusBadGateway)};return p }
 func health(w http.ResponseWriter,_ *http.Request){write(w,map[string]any{"service":"ftn-family-guard","status":"ok","time":time.Now().UTC()})}
 func(s *State)devices(w http.ResponseWriter,r *http.Request){if r.Method!=http.MethodGet{method(w);return};if s.Store!=nil{ctx,c:=requestContext(r);defer c();d,err:=s.Store.ListDevices(ctx);if err!=nil{http.Error(w,"database error",500);return};write(w,d);return};s.mu.RLock();defer s.mu.RUnlock();write(w,s.Devices)}
 func(s *State)policy(w http.ResponseWriter,r *http.Request){switch r.Method{case http.MethodGet:if s.Store!=nil{ctx,c:=requestContext(r);defer c();p,err:=s.Store.ActivePolicy(ctx);if err!=nil{http.Error(w,"database error",500);return};if p!=nil{write(w,p);return}};s.mu.RLock();defer s.mu.RUnlock();write(w,s.Policy);case http.MethodPost:var n map[string]any;if err:=json.NewDecoder(http.MaxBytesReader(w,r.Body,64<<10)).Decode(&n);err!=nil{http.Error(w,"invalid json",400);return};v,ok:=n["version"].(float64);if !ok||v<1{http.Error(w,"version is required",400);return};dns,ok:=n["dns"].(map[string]any);if !ok{http.Error(w,"dns policy is required",400);return};ds,ok:=dns["dnssec"].(bool);if !ok||!ds{http.Error(w,"dnssec must remain required",400);return};if _,ok:=n["resolver_policy"];!ok{n["resolver_policy"]=map[string]any{"ftn":true,"cloudflare_family":false,"public_fallback":false}};if s.Store!=nil{ctx,c:=requestContext(r);defer c();if err:=s.Store.SavePolicy(ctx,n);err!=nil{http.Error(w,"database error",500);return}};s.mu.Lock();s.Policy=n;s.Usage["policy_version"]=v;devices:=append([]map[string]any(nil),s.Devices...);s.mu.Unlock();payload:=map[string]any{"version":v,"policy":n};for _,d:=range devices{if id,ok:=d["id"].(string);ok&&strings.TrimSpace(id)!=""{s.Hub.Send(id,"policy.updated",payload)}};write(w,n);default:method(w)}}
