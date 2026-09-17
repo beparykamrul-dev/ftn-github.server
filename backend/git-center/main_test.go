@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -37,4 +38,29 @@ func TestGitCenterApprovedDeployDoesNotExecute(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.approval("deploy")(w, r)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"executed":false`) { t.Fatalf("unexpected response: %d %s", w.Code, w.Body.String()) }
+}
+
+func TestGitCenterUnknownApprovalRejected(t *testing.T) {
+	s := &State{Services: []Service{{ID: "svc-1"}}}
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/git/deploy", strings.NewReader(`{"id":"unknown","approval":"approved"}`))
+	w := httptest.NewRecorder()
+	s.approval("deploy")(w, r)
+	if w.Code != http.StatusNotFound { t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String()) }
+}
+
+func TestGitCenterHealthNon2xxIsUnhealthy(t *testing.T) {
+	old := healthClient
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "bad", http.StatusInternalServerError) }))
+	defer ts.Close()
+	healthClient = ts.Client()
+	defer func() { healthClient = old }()
+
+	s := &State{Services: []Service{{ID: "svc-1", Service: "test", Health: ts.URL}}}
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/git/health", nil)
+	w := httptest.NewRecorder()
+	s.health(w, r)
+	body := w.Body.String()
+	if w.Code != http.StatusOK || !strings.Contains(body, `"status":"unhealthy"`) || !strings.Contains(body, fmt.Sprintf(`"http_status":%d`, http.StatusInternalServerError)) {
+		t.Fatalf("unexpected response: %d %s", w.Code, body)
+	}
 }
