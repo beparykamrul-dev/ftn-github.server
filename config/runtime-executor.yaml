@@ -1,0 +1,23 @@
+version: 1
+service: ftn-runtime-executor
+mode: registered-only
+policy:
+  allow_systemd_only: true
+  allow_shell_commands: false
+  allow_dynamic_units: false
+  allow_unregistered_services: false
+  require_approval_for_deploy: true
+  require_approval_for_rollback: true
+  health_verification_required: true
+  execution_timeout_seconds: 20
+actions:
+  deploy:
+    executor: systemd
+    operation: restart
+  restart:
+    executor: systemd
+    operation: restart
+  rollback:
+    executor: artifact-version-manager
+    operation: restore-approved-version
+    enabled: false
