@@ -13,9 +13,11 @@ fi
 
 command -v go >/dev/null 2>&1 || { echo "Go is required" >&2; exit 1; }
 command -v systemctl >/dev/null 2>&1 || { echo "systemd is required" >&2; exit 1; }
+command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 1; }
 
 mkdir -p "$APP"
 cd "$APP"
+go test ./...
 go build -o "$BIN" .
 chmod 0755 "$BIN"
 
