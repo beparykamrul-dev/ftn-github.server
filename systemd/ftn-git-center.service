@@ -1,0 +1,15 @@
+[Unit]
+Description=FTN Git Center API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ftn-github.server/backend/git-center
+ExecStart=/opt/ftn-github.server/backend/git-center/ftn-git-center
+Restart=on-failure
+RestartSec=3
+Environment=FTN_GIT_CENTER_ADDR=:8096
+
+[Install]
+WantedBy=multi-user.target
