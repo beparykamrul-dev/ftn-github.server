@@ -36,3 +36,6 @@ jobs:
       - name: Build Family Guard
         working-directory: backend/family-guard
         run: go build ./...
+      - name: Build Git Center
+        working-directory: backend/git-center
+        run: go build -o /tmp/ftn-git-center .
